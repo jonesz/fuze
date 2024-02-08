@@ -75,7 +75,7 @@ mod interval {
             for (idx, mem) in buf.iter_mut().enumerate() {
                 let (left, right) = (self.buf.get(idx).unwrap(), rhs.buf.get(idx).unwrap());
                 match (left, right) {
-                    (Some(l), Some(r)) => *mem = Self::intersect(&l, &r),
+                    (Some(l), Some(r)) => *mem = Self::intersect(l, r),
                     _ => *mem = None,
                 }
             }
