@@ -1,3 +1,30 @@
+mod magnitude {
+
+    pub struct Magnitude<const N: usize, T: Copy> {
+        buf: [(T); N],
+    }
+
+    impl<const N: usize, T: Copy> Magnitude<N, T> {
+        fn index(&self, x: &T) -> Option<usize> {
+            todo!("Calculate the index.")
+        }
+
+        pub fn insert(&mut self, x: T) {
+            if let Some(i) = self.index(&x) {
+                for j in 0..i {
+                    *self.buf.get_mut(j).unwrap() = *self.buf.get(j + 1).unwrap();
+                }
+                *self.buf.get_mut(i).unwrap() = x;
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+    }
+}
+
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
