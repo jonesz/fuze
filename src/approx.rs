@@ -19,6 +19,15 @@ mod magnitude {
         }
     }
 
+    impl<const N: usize, T: Copy> IntoIterator for Magnitude<N, T> {
+        type Item = T;
+        type IntoIter = core::array::IntoIter<T, N>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.buf.into_iter()
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
