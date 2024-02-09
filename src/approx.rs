@@ -31,6 +31,22 @@ mod magnitude {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn test_i32() {
+            const N: usize = 3;
+
+            let mut s: Magnitude<N, i32> = todo!("Create the magnitude structure.");
+            let a = [-5i32, 5i32, 0i32, -2i32, 2i32, 1i32, -99i32, 100i32];
+            for b in a.into_iter() {
+                s.insert(b);
+            }
+
+            a.sort();
+            for (a, b) in a.into_iter().take(N).zip(s.into_iter()) {
+                assert_eq!(a, b);
+            }
+        }
     }
 }
 
