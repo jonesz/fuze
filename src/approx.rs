@@ -1,12 +1,21 @@
 mod magnitude {
 
     pub struct Magnitude<const N: usize, T: Copy> {
-        buf: [(T); N],
+        buf: [T; N],
+        num_initialized: usize,
     }
 
     impl<const N: usize, T: Copy> Magnitude<N, T> {
+        fn new() -> Self {
+            let buf: [T; N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
+            Self {
+                buf,
+                num_initialized: 0,
+            }
+        }
+
         fn index(&self, x: &T) -> Option<usize> {
-            todo!("Calculate the index.")
+            todo!("Compute the correct index.");
         }
 
         pub fn insert(&mut self, x: T) {
@@ -14,6 +23,7 @@ mod magnitude {
                 for j in 0..i {
                     *self.buf.get_mut(j).unwrap() = *self.buf.get(j + 1).unwrap();
                 }
+
                 *self.buf.get_mut(i).unwrap() = x;
             }
         }
@@ -36,8 +46,8 @@ mod magnitude {
         fn test_i32() {
             const N: usize = 3;
 
-            let mut s: Magnitude<N, i32> = todo!("Create the magnitude structure.");
-            let a = [-5i32, 5i32, 0i32, -2i32, 2i32, 1i32, -99i32, 100i32];
+            let mut s: Magnitude<N, i32> = Magnitude::new();
+            let mut a = [-5i32, 5i32, 0i32, -2i32, 2i32, 1i32, -99i32, 100i32];
             for b in a.into_iter() {
                 s.insert(b);
             }
