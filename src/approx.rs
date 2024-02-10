@@ -1,7 +1,12 @@
 mod magnitude {
 
     pub struct Magnitude<const N: usize, T: Copy> {
-        buf: [T; N],
+        buf: [T; N], // Store the N largest elements, smallest to largest.
+
+        // `buf` at the time of writing is uninitialized with MaybeUninit.
+        // We keep track of how may times insert has been called; once `N`
+        // has been eclipsed, all indices of `buf` are guaranteed to be
+        // initialized.
         num_initialized: usize,
     }
 
