@@ -116,19 +116,17 @@ mod pq {
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
-    T: Ord, // TODO: Ord vs PartialOrd?
+    T: Ord + Copy, // TODO: Ord vs PartialOrd?
 {
     // Check for the degenerate case where we have less than N elements.
     if bba.len() <= N {
         todo!("Capture the degenerate case.");
     };
 
-    let mut bpq = pq::BoundedPriorityQueue::new();
+    let mut bpq: pq::BoundedPriorityQueue<(usize, T), N> = pq::BoundedPriorityQueue::new();
 
-    // TODO: Map the BBA to have the set indicate the index; what should
-    // the key extraction function be?
-    let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, m));
-    let f = todo!("What's this function?");
+    let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
+    let f = |(_, m): &(usize, T)| *m;
 
     for x in bba_idx {
         bpq.insert_by_key(x, f);
