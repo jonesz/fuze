@@ -116,6 +116,7 @@ mod pq {
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
+    S: Copy,
     T: Ord + Copy, // TODO: Ord vs PartialOrd?
 {
     // Check for the degenerate case where we have less than N elements.
@@ -133,4 +134,35 @@ where
     }
 
     todo!("Create the summary.");
+}
+
+/// Perform 'kx' resulting in 'N' entries within the BBA.
+pub fn kx<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
+where
+    S: Copy,
+    T: Ord + Copy, // TODO: Ord vs PartialOrd?
+{
+    if bba.len() <= N {
+        todo!("Capture the degenerate case.");
+    };
+
+    let mut bpq: pq::BoundedPriorityQueue<(usize, T), N> = pq::BoundedPriorityQueue::new();
+
+    let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
+    let f = |(_, m): &(usize, T)| *m;
+
+    for x in bba_idx {
+        bpq.insert_by_key(x, f);
+    }
+
+    let mut kx: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
+
+    for (i, (j, _)) in bpq.into_iter().enumerate() {
+        let mem = kx.get_mut(i).unwrap();
+        *mem = *bba.get(j).unwrap();
+    }
+
+    todo!("Normalize.");
+
+    kx
 }
