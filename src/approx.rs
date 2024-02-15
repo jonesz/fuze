@@ -1,5 +1,15 @@
+//! Approximation schemes within Dempster-Shafer Theory.
+//!
+//! Consider multiple BBAs with multiple arbitrary elements: `[f][?](set, f32)`;
+//! beyond the computational infeasibility of producing combinations, it's
+//! difficult to do this in parallel because of potential arr irregularity.
+//! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
+//! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
+
+/// PQ structures that are useful for keeping track of the `k` largest elements.
 mod pq {
 
+    /// A PQ that is backed by a known-length arr.
     pub struct BoundedPriorityQueue<T, const N: usize> {
         buf: [T; N],
 
@@ -11,6 +21,7 @@ mod pq {
     }
 
     impl<T, const N: usize> BoundedPriorityQueue<T, N> {
+        /// Create a new `BoundedPriorityQueue` that is effectively uninitialized.
         pub fn new() -> Self {
             let buf: [T; N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
             Self {
@@ -19,13 +30,16 @@ mod pq {
             }
         }
 
+        /// Insert a `T` into the queue by a key extraction function.
         pub fn insert_by_key<F, R>(&mut self, x: T, f: F)
         where
             T: Copy,
             R: Ord,
             F: Fn(&T) -> R,
         {
-            // Compute the index for where `x` should reside.
+            // Compute the index for where the parent `x` should reside.
+            // TODO: this function should *always* return an index `< N`, but the index
+            // computation in this function and the below if/else feels brittle.
             let index = || -> Option<usize> {
                 for (i, v) in self.buf.iter().enumerate() {
                     if f(&x) > f(v) {
@@ -37,11 +51,11 @@ mod pq {
                 }
 
                 // The entire for loop completed; thus `x` is the largest value.
-                return N.checked_sub(1);
+                Some(N - 1)
             };
 
-            // If we haven't inserted N values, we insert regardless. If we've inserted N,
-            // we need to sort the underlying arr. And if we've inserted > N values, our
+            // If we haven't inserted `N` values, we insert regardless; then if we've inserted `N`,
+            // we need to sort the underlying arr. And if we've inserted `> N` values, our
             // insertion works like a normal priority queue.
             if self.num_initialized < N {
                 let mem = self.buf.get_mut(self.num_initialized).unwrap();
@@ -52,11 +66,11 @@ mod pq {
                     self.buf.sort_unstable_by_key(f);
                 }
             } else {
-                // If this `x` value belongs in the structure, we find the index it resides at,
-                // then push all of those values to the left, dropping the smallest value.
+                // We find the index which `x` should slot into (if it's too small, `None`),
+                // then push all of those values to the left.
                 if let Some(idx) = index() {
                     for i in 0..idx {
-                        let r_mem = *self.buf.get(i + 1).unwrap();
+                        let r_mem = *self.buf.get(i + 1).unwrap(); // TODO: Fix this brittle indexing.
                         let l_mem = self.buf.get_mut(i).unwrap();
                         *l_mem = r_mem;
                     }
@@ -67,11 +81,12 @@ mod pq {
             }
         }
 
+        /// Insert a `T` into the queue.
         pub fn insert(&mut self, x: T)
         where
             T: Ord + Copy,
         {
-            let f = |x: &T| *x;
+            let f = |x: &T| *x; // TODO: I'm assuming this computes to a no-op?
             self.insert_by_key(x, f)
         }
     }
