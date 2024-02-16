@@ -107,7 +107,7 @@ mod pq {
         use super::*;
 
         #[test]
-        fn test_i32() {
+        fn test_insert() {
             const N: usize = 3;
 
             let mut s: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
@@ -120,6 +120,37 @@ mod pq {
             // We have to then reverse the iterator after taking `N`: the BPQ stores
             // values from smallest to largest.
             a.sort();
+            a.reverse();
+            for (a, b) in a.into_iter().take(N).rev().zip(s.into_iter()) {
+                assert_eq!(a, b);
+            }
+        }
+
+        #[test]
+        fn test_insert_by_key() {
+            const N: usize = 3;
+            let mut s: BoundedPriorityQueue<(&str, i32), N> = BoundedPriorityQueue::new();
+            let mut a = [
+                ("a", -5i32),
+                ("b", 5i32),
+                ("c", 0i32),
+                ("d", -2i32),
+                ("e", 2i32),
+                ("f", 1i32),
+                ("g", -99i32),
+                ("h", 100i32),
+            ];
+
+            let f = |a: &(&str, i32)| a.1;
+
+            for b in a.into_iter() {
+                s.insert_by_key(b, f);
+            }
+
+            // We place the largest values at the front with `sort` into `reverse`;
+            // We have to then reverse the iterator after taking `N`: the BPQ stores
+            // values from smallest to largest.
+            a.sort_unstable_by_key(f);
             a.reverse();
             for (a, b) in a.into_iter().take(N).rev().zip(s.into_iter()) {
                 assert_eq!(a, b);
