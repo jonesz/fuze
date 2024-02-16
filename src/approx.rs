@@ -109,19 +109,16 @@ mod pq {
         #[test]
         fn test_insert() {
             const N: usize = 3;
+            let test_range = -10..10;
+            let mut bpq_n: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
 
-            let mut s: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
-            let mut a = [-5i32, 5i32, 0i32, -2i32, 2i32, 1i32, -99i32, 100i32];
-            for b in a.into_iter() {
-                s.insert(b);
+            for v in test_range.clone() {
+                bpq_n.insert(v);
             }
 
-            // We place the largest values at the front with `sort` into `reverse`;
-            // We have to then reverse the iterator after taking `N`: the BPQ stores
-            // values from smallest to largest.
-            a.sort();
-            a.reverse();
-            for (a, b) in a.into_iter().take(N).rev().zip(s.into_iter()) {
+            // The BPQ should have the N largest values (which are the 3 at the end of the range).
+            let iter = test_range.into_iter().rev().take(N).rev();
+            for (a, b) in iter.zip(bpq_n.into_iter()) {
                 assert_eq!(a, b);
             }
         }
@@ -129,30 +126,17 @@ mod pq {
         #[test]
         fn test_insert_by_key() {
             const N: usize = 3;
-            let mut s: BoundedPriorityQueue<(&str, i32), N> = BoundedPriorityQueue::new();
-            let mut a = [
-                ("a", -5i32),
-                ("b", 5i32),
-                ("c", 0i32),
-                ("d", -2i32),
-                ("e", 2i32),
-                ("f", 1i32),
-                ("g", -99i32),
-                ("h", 100i32),
-            ];
+            let test_range = (0..20usize).zip(-10..10i32);
+            let mut bpq_n: BoundedPriorityQueue<(usize, i32), N> = BoundedPriorityQueue::new();
 
-            let f = |a: &(&str, i32)| a.1;
-
-            for b in a.into_iter() {
-                s.insert_by_key(b, f);
+            let f = |a: &(usize, i32)| a.1;
+            for v in test_range.clone() {
+                bpq_n.insert_by_key(v, f);
             }
 
-            // We place the largest values at the front with `sort` into `reverse`;
-            // We have to then reverse the iterator after taking `N`: the BPQ stores
-            // values from smallest to largest.
-            a.sort_unstable_by_key(f);
-            a.reverse();
-            for (a, b) in a.into_iter().take(N).rev().zip(s.into_iter()) {
+            // The BPQ should have the N largest values (which are the 3 at the end of the range).
+            let iter = test_range.rev().take(N).rev();
+            for (a, b) in iter.zip(bpq_n.into_iter()) {
                 assert_eq!(a, b);
             }
         }
