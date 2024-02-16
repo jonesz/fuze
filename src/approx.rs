@@ -95,9 +95,11 @@ mod pq {
         type Item = T;
         type IntoIter = core::array::IntoIter<T, N>;
 
-        // TODO: Handle this case when we haven't triggered `num_initialized`, or the `num_initialized` sort?
-        // An option is to just panic.
         fn into_iter(self) -> Self::IntoIter {
+            // TODO: This is more difficult than you'd think. One, we can't sort here
+            // because self isn't mutable. Another thing is we're returning an arr iter,
+            // so we can't return the iterator over a slice...
+            assert!(self.num_initialized >= N);
             self.buf.into_iter()
         }
     }
