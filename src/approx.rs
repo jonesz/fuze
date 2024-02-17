@@ -145,6 +145,26 @@ mod pq {
                 assert_eq!(a, *b);
             }
         }
+
+        #[test]
+        fn test_uninitialized() {
+            const N: usize = 50;
+            let test_range = -10..10;
+            let mut bpq_n: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
+
+            for v in test_range.clone() {
+                bpq_n.insert(v);
+            }
+
+            // At this point, we don't `rev`: the BPQ hasn't been sorted.
+            let iter = test_range.clone().into_iter();
+
+            // The returned iterator's upper_bound should be the range length, not N.
+            assert_eq!(iter.size_hint().1.unwrap(), test_range.count());
+            for (a, b) in iter.zip(bpq_n.into_iter()) {
+                assert_eq!(a, *b);
+            }
+        }
     }
 }
 
