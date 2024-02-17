@@ -91,16 +91,19 @@ mod pq {
         }
     }
 
-    impl<T, const N: usize> IntoIterator for BoundedPriorityQueue<T, N> {
-        type Item = T;
-        type IntoIter = core::array::IntoIter<T, N>;
+    /// `IntoIter` for a reference to a BPQ.
+    // The benefit to doing it this way is that we can return a slice; this allows
+    // us to cut off those potentially uninitialized values.
+    impl<'a, T, const N: usize> IntoIterator for &'a BoundedPriorityQueue<T, N> {
+        type Item = &'a T;
+        type IntoIter = core::slice::Iter<'a, T>;
 
         fn into_iter(self) -> Self::IntoIter {
-            // TODO: This is more difficult than you'd think. One, we can't sort here
-            // because self isn't mutable. Another thing is we're returning an arr iter,
-            // so we can't return the iterator over a slice...
-            assert!(self.num_initialized >= N);
-            self.buf.into_iter()
+            if self.num_initialized < N {
+                self.buf[0..self.num_initialized].iter()
+            } else {
+                self.buf.as_slice().iter()
+            }
         }
     }
 
@@ -121,7 +124,7 @@ mod pq {
             // The BPQ should have the N largest values (which are the 3 at the end of the range).
             let iter = test_range.into_iter().rev().take(N).rev();
             for (a, b) in iter.zip(bpq_n.into_iter()) {
-                assert_eq!(a, b);
+                assert_eq!(a, *b);
             }
         }
 
@@ -139,7 +142,7 @@ mod pq {
             // The BPQ should have the N largest values (which are the 3 at the end of the range).
             let iter = test_range.rev().take(N).rev();
             for (a, b) in iter.zip(bpq_n.into_iter()) {
-                assert_eq!(a, b);
+                assert_eq!(a, *b);
             }
         }
     }
@@ -191,7 +194,7 @@ where
 
     for (i, (j, _)) in bpq.into_iter().enumerate() {
         let mem = kx.get_mut(i).unwrap();
-        *mem = *bba.get(j).unwrap();
+        *mem = *bba.get(*j).unwrap();
     }
 
     todo!("Normalize.");
