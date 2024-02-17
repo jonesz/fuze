@@ -6,8 +6,8 @@
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
 
-/// PQ structures that are useful for keeping track of the `k` largest elements.
-mod pq {
+/// BPQ structures that are useful for keeping track of the `k` largest elements.
+mod bpq {
 
     /// A PQ that is backed by a known-length arr.
     pub struct BoundedPriorityQueue<T, const N: usize> {
@@ -179,7 +179,7 @@ where
         todo!("Capture the degenerate case.");
     };
 
-    let mut bpq: pq::BoundedPriorityQueue<(usize, T), N> = pq::BoundedPriorityQueue::new();
+    let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
 
     let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
     let f = |(_, m): &(usize, T)| *m;
@@ -201,7 +201,7 @@ where
         todo!("Capture the degenerate case.");
     };
 
-    let mut bpq: pq::BoundedPriorityQueue<(usize, T), N> = pq::BoundedPriorityQueue::new();
+    let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
 
     let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
     let f = |(_, m): &(usize, T)| *m;
