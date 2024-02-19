@@ -194,30 +194,47 @@ where
 /// Perform 'kx' resulting in 'N' entries within the BBA.
 pub fn kx<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
-    S: Copy,
-    T: Ord + Copy, // TODO: Ord vs PartialOrd?
+    S: Copy + crate::set::SetOperations,
+    T: Ord + Copy + From<usize> + core::iter::Sum + core::ops::Div<T, Output = T>, // TODO: Ord vs PartialOrd?
 {
-    if bba.len() <= N {
-        todo!("Capture the degenerate case.");
-    };
-
-    let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
-
-    let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
-    let f = |(_, m): &(usize, T)| *m;
-
-    for x in bba_idx {
-        bpq.insert_by_key(x, f);
-    }
-
     let mut kx: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
 
-    for (i, (j, _)) in bpq.into_iter().enumerate() {
-        let mem = kx.get_mut(i).unwrap();
-        *mem = *bba.get(*j).unwrap();
-    }
+    // Catch the degenerate case where |bba| < `N`.
+    if bba.len() < N {
+        for (i, x) in bba.iter().enumerate() {
+            let mem = kx.get_mut(i).unwrap();
+            *mem = *x;
+        }
 
-    todo!("Normalize.");
+        for mem in kx.iter_mut().skip(bba.len()) {
+            *mem = (S::empty(), 0.into());
+        }
+    } else {
+        // Otherwise, find the N largest values in the bba.
+        let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
+
+        // TODO: So there's some tradeoffs here: if we store the `usize`, the underlying BPQ will be
+        // smaller, but we'll need to do another loop to copy N values. On the other hand, if we
+        // push `S` we can avoid this final loop, popping them off into the arr.
+        let f = |(_, m): &(usize, T)| *m;
+        for x in bba.iter().enumerate().map(|(i, (_, m))| (i, *m)) {
+            bpq.insert_by_key(x, f);
+        }
+
+        // Write the values to kx.
+        for (i, (j, _)) in bpq.into_iter().enumerate() {
+            let mem = kx.get_mut(i).unwrap();
+            *mem = *bba.get(*j).unwrap();
+        }
+
+        let total: T = kx.iter().map(|(_, m)| *m).sum();
+
+        // Normalize.
+        for mem in kx.iter_mut() {
+            let (s, m) = *mem;
+            *mem = (s, m / total);
+        }
+    }
 
     kx
 }
