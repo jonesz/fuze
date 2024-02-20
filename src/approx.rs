@@ -171,12 +171,21 @@ mod bpq {
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
-    S: Copy,
-    T: Ord + Copy, // TODO: Ord vs PartialOrd?
+    S: Copy + crate::set::SetOperations,
+    T: Ord + Copy + From<usize> + core::iter::Sum + core::ops::Div<T, Output = T>, // TODO: Ord vs PartialOrd?
 {
+    let mut summarize: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
+
     // Check for the degenerate case where we have less than N elements.
     if bba.len() <= N {
-        todo!("Capture the degenerate case.");
+        for (i, x) in bba.iter().enumerate() {
+            let mem = summarize.get_mut(i).unwrap();
+            *mem = *x;
+        }
+
+        for mem in summarize.iter_mut().skip(bba.len()) {
+            *mem = (S::empty(), 0.into());
+        }
     };
 
     let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
