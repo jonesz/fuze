@@ -2,4 +2,5 @@
 #![warn(missing_docs)]
 mod approx;
 mod dst;
+mod product;
 mod set;
