@@ -11,7 +11,7 @@ impl<'a, const D: usize, I> CartesianProduct<'a, D, I> {
     pub fn new(items: [&'a [I]; D]) -> Self {
         let indices = [0usize; D];
         let mut lengths = [0usize; D];
-        for (idx, (item, length)) in items.iter().zip(lengths.iter_mut()).enumerate() {
+        for (item, length) in items.iter().zip(lengths.iter_mut()) {
             *length = item.len();
         }
 
@@ -25,14 +25,14 @@ impl<'a, const D: usize, I> CartesianProduct<'a, D, I> {
 
     fn inc(&mut self, idx: usize) -> Result<(), ()> {
         if let Some(to_inc) = self.indices.get_mut(idx) {
-            *to_inc = *to_inc + 1;
+            *to_inc += 1;
             let length = self.lengths.get(idx).unwrap();
 
             if *to_inc >= *length {
                 *to_inc = 0;
-                return self.inc(idx + 1);
+                self.inc(idx + 1)
             } else {
-                return Ok(());
+                Ok(())
             }
         } else {
             self.consumed = true;
