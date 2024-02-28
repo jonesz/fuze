@@ -41,11 +41,32 @@ impl<'a, const D: usize, I> CartesianProduct<'a, D, I> {
     }
 }
 
-impl<const D: usize, I> Iterator for CartesianProduct<'_, D, I> {
-    type Item = I;
+impl<const D: usize, I> Iterator for CartesianProduct<'_, D, I>
+where
+    I: Copy,
+{
+    type Item = [I; D];
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        if self.consumed {
+            None
+        } else {
+            let mut buf: [I; D] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
+            for (bba_idx, indices_idx) in self.indices.iter().enumerate() {
+                let mem = buf.get_mut(bba_idx).unwrap();
+                let val = self
+                    .items
+                    .get_mut(bba_idx)
+                    .unwrap()
+                    .get(*indices_idx)
+                    .unwrap();
+
+                *mem = *val;
+            }
+
+            let _ = self.inc(0usize);
+            Some(buf)
+        }
     }
 }
 
@@ -70,7 +91,7 @@ mod tests {
         let items: [&[usize]; 3] = [&[1], &[3, 4, 5, 6], &[1, 2, 3]];
         let mut product = CartesianProduct::<3, usize>::new(items);
 
-        for i in 0..6 {
+        for _ in 0..6 {
             assert!(product.inc(0).is_ok());
         }
         assert_ne!(product.indices[2], 0);
@@ -87,6 +108,37 @@ mod tests {
         for _ in 0..total_items {
             assert!(product.inc(0).is_ok());
         }
+
         assert!(product.inc(0).is_err());
+    }
+
+    #[test]
+    fn test_iterator() {
+        let items: [&[usize]; 3] = [&[1], &[3, 4, 5, 6], &[1, 2, 3]];
+        let mut product = CartesianProduct::<3, usize>::new(items);
+
+        // Iterate over all values within the second arr.
+        assert_eq!(product.next().unwrap(), [1usize, 3, 1]);
+        assert_eq!(product.next().unwrap(), [1usize, 4, 1]);
+        assert_eq!(product.next().unwrap(), [1usize, 5, 1]);
+        assert_eq!(product.next().unwrap(), [1usize, 6, 1]);
+
+        // Roll over the last arr.
+        assert_eq!(product.next().unwrap(), [1usize, 3, 2]);
+    }
+
+    #[test]
+    fn test_iterator_consumed() {
+        let items: [&[usize]; 3] = [&[1], &[3, 4, 5, 6], &[1, 2, 3]];
+        let mut product = CartesianProduct::<3, usize>::new(items);
+
+        // The total items isn't -1 here; we effectively return
+        // the last computed value.
+        let total_items = (1 * 4 * 3);
+        for _ in 0..total_items {
+            assert!(product.next().is_some());
+        }
+
+        assert!(product.next().is_none());
     }
 }
