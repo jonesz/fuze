@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-struct CartesianProduct<'a, const D: usize, I> {
+pub struct CartesianProduct<'a, const D: usize, I> {
     items: [&'a [I]; D],
     lengths: [usize; D],
     indices: [usize; D],
