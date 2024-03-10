@@ -14,7 +14,7 @@ mod bpq {
         buf: [T; N],
 
         // `buf` at the time of writing is uninitialized with MaybeUninit.
-        // We keep track of how may times insert has been called; once `N`
+        // We keep track of how many times insert has been called; once `N`
         // has been eclipsed, all indices of `buf` are guaranteed to be
         // initialized.
         num_initialized: usize,
