@@ -134,7 +134,7 @@ mod tests {
 
         // The total items isn't -1 here; we effectively return
         // the last computed value.
-        let total_items = (1 * 4 * 3);
+        let total_items = 1 * 4 * 3;
         for _ in 0..total_items {
             assert!(product.next().is_some());
         }
