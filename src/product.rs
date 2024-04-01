@@ -1,6 +1,23 @@
+//! Utilities for computing a Cartesian Product.
+//!
+//! For some BBAs, we need to compute their Cartesian Product;
+//! included are utilities for computing said Cartesian Product.
+
+// TODO: Does this potentially need to be named as some sort
+// `CartesianProductIterator` to indicate that it is an
+// iterator?
 #[derive(Clone, Debug)]
 pub struct CartesianProduct<'a, const D: usize, I> {
+    // We don't particularly need to utilize an iterator; we're
+    // going to be iterating over predictions produced by some model,
+    // so the data should reside in memory already.
+    // TODO: What if this is coming over the network? Would abstracting
+    // it as an iterator allow for that use case?
     items: [&'a [I]; D],
+
+    // TODO: This technically doesn't have to be stored; we could
+    // call the `.len()` on the slice (or potential iter) and
+    // drop this off the stack.
     lengths: [usize; D],
     indices: [usize; D],
 
@@ -23,6 +40,7 @@ impl<'a, const D: usize, I> CartesianProduct<'a, D, I> {
         }
     }
 
+    // Helper function to bump the appropriate index.
     fn inc(&mut self, idx: usize) -> Result<(), ()> {
         if let Some(to_inc) = self.indices.get_mut(idx) {
             *to_inc += 1;
