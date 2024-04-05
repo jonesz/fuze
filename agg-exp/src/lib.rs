@@ -13,8 +13,8 @@ pub fn weighted_average_convex<P, W, const N: usize>(
     t: usize,
 ) -> P
 where
-    &W: Mul<P, Output = P>,
-    &P: Add<Output = P> + Div<Output = P>,
+    for <'a> &'a W: Mul<&'a P, Output = P>,
+    P: Add<Output=P> + Div<Output=P>,
 {
     // $\hat{p} = \sum_{i=1}{N} w_{i,t-1} f_{i,t} / \sum_{j=1}{N} w_{j,t-1}$
     let top = weights
