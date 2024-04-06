@@ -1,6 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
-use core::ops::{Add, Sub, Div, Mul};
+mod loss;
+
+use core::ops::{Add, Div, Mul, Sub};
 
 pub trait Expert<P> {
     // TODO: Should this be mutable?
@@ -37,7 +39,7 @@ where
 fn cumulative_regret<P, S, L>(revealed: &[P], p_hat: &[P], prediction: &[P], loss: L) -> S
 where
     L: Fn(&P, &P) -> S,
-    S: Add<Output=S> + Sub<Output=S>,
+    S: Add<Output = S> + Sub<Output = S>,
 {
     // PLG - (pg. 8).
     // R_{E,n} = sum_{i=1}{N}(loss(\hat{p_t}, y_t) - loss(f_{E,t},y_t)) = \hat{L_n} - L_{E,n}
