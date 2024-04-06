@@ -28,6 +28,6 @@ fn gentle_start() {
     let mut rng = rand::thread_rng();
 
     while (weights.iter().sum::<u8>() != 1) {
-        
+        todo!();
     }
 }
