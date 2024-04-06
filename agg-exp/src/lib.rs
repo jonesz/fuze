@@ -26,7 +26,7 @@ where
         // TODO: So we're iterating over `&P`; the reduction isn't fun because
         // we can compute `&P + P`, `&P + &P`, or `P + P`, so we introduce
         // a copy before. Can we do this without the copy?
-        .map(|a| *a)
+        .copied()
         .reduce(|a, b| a + b)
         .unwrap();
 
