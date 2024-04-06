@@ -1,6 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
-use core::ops::{Add, Div, Mul};
+use core::ops::{Add, Sub, Div, Mul};
 
 pub trait Expert<P> {
     // TODO: Should this be mutable?
@@ -31,4 +31,39 @@ where
         .unwrap();
 
     top / bot
+}
+
+/// A forecaster's cumulative regret in regard to specific expert E.
+fn cumulative_regret<P, S, L>(revealed: &[P], p_hat: &[P], prediction: &[P], loss: L) -> S
+where
+    L: Fn(&P, &P) -> S,
+    S: Add<Output=S> + Sub<Output=S>,
+{
+    // PLG - (pg. 8).
+    // R_{E,n} = sum_{i=1}{N}(loss(\hat{p_t}, y_t) - loss(f_{E,t},y_t)) = \hat{L_n} - L_{E,n}
+    revealed
+        .iter()
+        .zip(p_hat.iter().zip(prediction))
+        .map(|(y_t, (p_t, f_t))| loss(p_t, y_t) - loss(f_t, y_t))
+        // TODO: Rather than utilizing reduce, we could use Sum?
+        .reduce(|a, b| a + b)
+        .unwrap()
+}
+
+pub fn exponential_average_update<P, W, const N: usize>(
+    revealed: &P,
+    t: usize,
+    predictions: &[P; N],
+    weights: &[W; N],
+    n: &W,
+) -> [W; N]
+where
+    W: Clone,
+{
+    // TODO: Is this a `Clone` or a `Copy`?
+    let mut w_t: [W; N] = weights.clone();
+
+    for (w_j_t, p_j) in w_t.iter_mut().zip(predictions) {}
+
+    w_t
 }
