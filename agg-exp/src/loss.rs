@@ -19,6 +19,16 @@ where
         .map(|(y_t, p_t)| (y_t - p_t) * (y_t - p_t)).sum()
 }
 
+/// Mean Squared Error.
+pub fn mse<P>(t: &[P], p: &[P]) -> P
+where
+    for<'a> &'a P: Sub<&'a P, Output = P>,
+    P: Mul<Output = P> + Sum,
+{
+    todo!("1/n * l2(t, p)") // * l2(t, p)
+}
+    
+
 #[cfg(test)]
 mod test {
     use super::*;
