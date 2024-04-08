@@ -1,10 +1,11 @@
 use crate::set::SetOperations;
+use core::iter::Sum;
 
 /// Compute the belief of `A` given a BBA.
 pub fn bel<'a, S, T>(bba: &'a [(S, T)], q: &S) -> T
 where
     S: SetOperations,
-    T: core::iter::Sum<&'a T> + 'a,
+    T: Sum<&'a T> + 'a,
 {
     bba.iter()
         .filter(|(p, _)| p.is_subset(q))
