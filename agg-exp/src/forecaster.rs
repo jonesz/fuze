@@ -15,7 +15,7 @@ mod exp {
 
     impl<const N: usize> Default for EWAF<f32, N> {
         fn default() -> Self {
-            Self { [1.0; N] }
+            Self { w: [1.0; N] }
         }
     }
 
