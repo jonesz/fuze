@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
+mod forecaster;
 mod loss;
 
 use core::ops::{Add, Div, Mul, Sub};
