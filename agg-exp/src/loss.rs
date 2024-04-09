@@ -2,6 +2,21 @@
 use core::ops::{Mul, Sub};
 use core::iter::Sum;
 
+pub trait Loss<E, F> {
+    fn l(a: &E, b: &E) -> F;
+}
+
+/// L2 loss.
+struct L2();
+
+impl<const N: usize> Loss<[f32; N], f32> for L2 {
+    fn l(a: &[f32; N], b: &[f32; N]) -> f32 {
+        a.iter()
+            .zip(b)
+            .map(|(a_t, b_t)| (a_t - b_t) * (a_t - b_t)).sum()
+    }
+}
+
 /// L1 loss.
 pub fn l1<P>(t: &[P], p: &[P]) -> P {
     todo!();
