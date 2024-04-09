@@ -1,9 +1,23 @@
 //! Loss functions.
-use core::ops::{Mul, Sub};
 use core::iter::Sum;
+use core::ops::{Mul, Sub};
 
 pub trait Loss<E, F> {
     fn l(a: &E, b: &E) -> F;
+}
+
+/// L1 loss.
+struct L1();
+
+impl<const N: usize> Loss<[f32; N], f32> for L1 {
+    fn l(a: &[f32; N], b: &[f32; N]) -> f32 {
+        // https://www.reddit.com/r/rust/comments/15ue8z0/comment/jwp4pz7/
+        fn abs(x: f32) -> f32 {
+            f32::from_bits(x.to_bits() & (i32::MAX as u32))
+        }
+
+        a.iter().zip(b).map(|(a_t, b_t)| abs(a_t - b_t)).sum()
+    }
 }
 
 /// L2 loss.
@@ -13,25 +27,9 @@ impl<const N: usize> Loss<[f32; N], f32> for L2 {
     fn l(a: &[f32; N], b: &[f32; N]) -> f32 {
         a.iter()
             .zip(b)
-            .map(|(a_t, b_t)| (a_t - b_t) * (a_t - b_t)).sum()
+            .map(|(a_t, b_t)| (a_t - b_t) * (a_t - b_t))
+            .sum()
     }
-}
-
-/// L1 loss.
-pub fn l1<P>(t: &[P], p: &[P]) -> P {
-    todo!();
-}
-
-/// L2 loss.
-pub fn l2<P>(t: &[P], p: &[P]) -> P
-where
-    for<'a> &'a P: Sub<&'a P, Output = P>,
-    P: Mul<Output = P> + Sum,
-{
-    // TODO: Handle unsigned types (usize could underflow!).
-    t.iter()
-        .zip(p)
-        .map(|(y_t, p_t)| (y_t - p_t) * (y_t - p_t)).sum()
 }
 
 /// Mean Squared Error.
@@ -42,7 +40,6 @@ where
 {
     todo!("1/n * l2(t, p)") // * l2(t, p)
 }
-    
 
 #[cfg(test)]
 mod test {
