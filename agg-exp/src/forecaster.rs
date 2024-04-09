@@ -13,6 +13,12 @@ mod exp {
         w: [W; N],
     }
 
+    impl<const N: usize> Default for EWAF<f32, N> {
+        fn default() -> Self {
+            Self { [1.0; N] }
+        }
+    }
+
     impl<const N: usize> EWAF<f32, N> {}
 
     impl<const N: usize> ExpertForecaster<f32, N> for EWAF<f32, N> {
