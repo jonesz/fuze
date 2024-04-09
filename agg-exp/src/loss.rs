@@ -47,9 +47,9 @@ mod test {
 
     #[test]
     fn test_l2() {
-        let t = &[0i32, 1, 2, 3, 4];
-        let p = &[5i32, 6, 7, 8, 9];
-        let r = 125i32;
-        assert_eq!(l2(t, p), r);
+        let t = &[0f32, 1.0, 2.0, 3.0, 4.0];
+        let p = &[5f32, 6.0, 7.0, 8.0, 9.0];
+        let r = 125f32;
+        assert_eq!(L2::l(t, p), r);
     }
 }
