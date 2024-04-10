@@ -2,6 +2,7 @@
 use core::iter::Sum;
 use core::ops::{Mul, Sub};
 
+// TODO: Why does there have to be a `T` here?
 pub trait Loss<T> {
     type Event;
     type Cost;
