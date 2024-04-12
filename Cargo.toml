@@ -7,7 +7,7 @@ edition = "2021"
 
 [workspace]
 members = [ "agg-exp",
-  "dst", "kalman",
+  "dst", "filter",
 ]
 
 [dependencies]
