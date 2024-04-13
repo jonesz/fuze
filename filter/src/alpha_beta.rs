@@ -1,37 +1,32 @@
 use crate::Filter;
-use core::marker::PhantomData;
 
-struct AlphaBeta<const N: usize, P> {
-    phantom: PhantomData<P>,
+struct AlphaBeta<P> {
+    alpha: P,
+    beta: P,
 }
 
-impl<const N: usize> AlphaBeta<N, f32> {
+impl AlphaBeta<f32> {
     /// The state transition matrix: $F(n-1)$.
-    fn state_transition_matrix(update_period: f32) -> [[f32; N]; N] {
-        let mut fN = [[0.0f32; N]; N];
-        for i in 0..N {
-            for j in 0..N {
-                if i == j {
-                    fN[i][j] = 1.0f32; // Diagonal.
-                } else if i < j {
-                    fN[i][j] = 0.0f32; // LHS.
-                } else {
-                    fN[i][j] = update_period;
-                    for _ in 0..(j - (i + 1)) {
-                        // TODO: this is busted.
-                        // update_period * update_period / 2.
-                        todo!();
-                    }
-                }
-            }
-        }
+    fn state_transition_matrix(update_period: f32) -> [[f32; 2]; 2] {
+        [[1.0f32, update_period], [0.0f32, 1.0f32]]
+    }
 
-        fN
+    // The weighting matrix, $K(n)$.
+    fn weighting_matrix(update_period: f32) -> [f32; 2] {
+        [alpha, beta/update_period]
     }
 }
 
-impl<const N: usize> Filter<N, f32> for AlphaBeta<N, f32> {
-    fn predict(T: f32, F: &[[f32; N]; N], X_s: &[f32; N]) -> [f32; N] {
-        todo!();
+impl Filter<2, f32> for AlphaBeta<f32> {
+    fn predict(update_period: f32, F: &[[f32; 2]; 2], X_s: &[f32; 2]) -> [f32; 2] {
+        let mut X_p = [0.0f32; 2];
+        let fN = Self::state_transition_matrix(update_period);
+
+        for i in 0..2 {
+            // $X_p(n) = F(n-1) X_s(n-1)$ (3.1).
+            X_p[i] = fN[i].iter().zip(X_s).map(|(a, b)| a + b).sum();
+        }
+
+        X_p
     }
 }
