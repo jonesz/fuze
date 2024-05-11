@@ -18,7 +18,10 @@ mod exp {
         phantom: PhantomData<L>,
     }
 
-    impl<L, const N: usize> EWAF<L, f32, N> where L: Loss<f32> {
+    impl<L, const N: usize> EWAF<L, f32, N>
+    where
+        L: Loss<f32>,
+    {
         /// Free paramter eta in relation to the time bound.
         fn eta(&self) -> f32 {
             todo!();
@@ -39,7 +42,7 @@ mod exp {
 
     impl<L, const N: usize> ExpertForecaster<f32, N> for EWAF<L, f32, N>
     where
-        L: Loss<f32, Event=f32, Cost=f32>,
+        L: Loss<f32, Event = f32, Cost = f32>,
     {
         fn predict(&self, experts: &[f32; N]) -> f32 {
             // \hat{p_t} = \sum_{i=1}^{N} w_{i,t-1} f_{i,t} (PLG - pg. 14)
@@ -53,12 +56,11 @@ mod exp {
                 ((x + 3.0) * (x + 3.0) + 3.0) / ((x - 3.0) * (x - 3.0) + 3.0)
             }
 
-            let eta = self.eta();            
+            let eta = self.eta();
             for (w_i, p_i) in self.w.iter_mut().zip(expert) {
                 *w_i *= approx_exp(-1.0f32 * eta * L::l(p_i, revealed));
             }
         }
-
     }
     #[cfg(test)]
     mod test {
