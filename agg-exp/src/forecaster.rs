@@ -4,10 +4,10 @@ use crate::loss::Loss;
 /// A base for algorithms capable of prediction with expert advice.
 ///
 /// An ExpertPredictor provides methods for:
-///   1. Given some 'N' experts' predictions, produce a prediction of
-///   type 'P'.
-///   2. Given those same experts' predictions and an environmentally
-///   revealed 'P', compute new weights for the next prediction.
+/// 1. Given some 'N' experts' predictions, produce a prediction of
+/// type 'P'.
+/// 2. Given those same experts' predictions and an environmentally
+/// revealed 'P', compute new weights for the next prediction.
 pub trait ExpertForecaster<P, const N: usize> {
     /// Given expert predictions, produce a prediction.
     fn predict(&self, experts: &[P; N]) -> P;
@@ -22,7 +22,7 @@ pub mod exp {
     use super::*;
     use core::marker::PhantomData;
 
-    /// The Exponentially Weighted Average Forecaster.
+    /// The Exponentially Weighted Average Forecaster (PLG - pg. 14).
     pub struct EWAF<L, W, const N: usize>
     where
         L: Loss<W>,
@@ -70,6 +70,9 @@ pub mod exp {
             }
 
             let eta = self.eta();
+            // This is pulled from notes of EECS 598 - Fall 2013, 'Prediction and Learning:
+            // It's Only a Game'; specifically 'Lecture 3, 9/11: The Exponential Weights Algorithm.'
+            // See '3-3 The Exponential Weight Algorithm' (pg. 3).
             for (w_i, p_i) in self.w.iter_mut().zip(expert) {
                 *w_i *= approx_exp(-1.0f32 * eta * L::l(p_i, revealed));
             }
