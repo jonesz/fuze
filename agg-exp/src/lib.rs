@@ -1,15 +1,25 @@
+//! Prediction with Expert Advice.
+//!
+//! These procedures allow for the weighing and combination of multiple expert
+//! predictions with the specific goal of minimizing loss in respect to the
+//! *best* expert prediction. Implementations are taken from
+//! 'Prediction, Learning, and Games' (2006) by Cesa-Bianchi and Lugosi.
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
-mod forecaster;
+
+/// Routines for continual prediction with expert advice.
+pub mod forecaster;
 mod loss;
 
 use core::ops::{Add, Div, Mul, Sub};
 
-pub trait Expert<P> {
-    // TODO: Should this be mutable?
-    fn predict(&mut self, t: usize) -> P;
+/// An expert observes some environment 'E', producing a prediction 'P'.
+pub trait Expert<E, P> {
+    ///
+    fn predict(&self, t: usize) -> P;
 }
 
+///
 pub fn weighted_average_convex<P, W, const N: usize>(predictions: &[P; N], weights: &[W; N]) -> P
 where
     for<'a> &'a W: Mul<&'a P, Output = P>,
@@ -37,7 +47,7 @@ where
 }
 
 /// A forecaster's cumulative regret in regard to specific expert E.
-fn cumulative_regret<P, S, L>(revealed: &[P], p_hat: &[P], prediction: &[P], loss: L) -> S
+fn _cumulative_regret<P, S, L>(revealed: &[P], p_hat: &[P], prediction: &[P], loss: L) -> S
 where
     L: Fn(&P, &P) -> S,
     S: Add<Output = S> + Sub<Output = S>,
@@ -53,12 +63,13 @@ where
         .unwrap()
 }
 
+///
 pub fn exponential_average_update<P, W, const N: usize>(
-    revealed: &P,
-    t: usize,
+    _revealed: &P,
+    _t: usize,
     predictions: &[P; N],
     weights: &[W; N],
-    n: &W,
+    _n: &W,
 ) -> [W; N]
 where
     W: Clone,
@@ -66,7 +77,7 @@ where
     // TODO: Is this a `Clone` or a `Copy`?
     let mut w_t: [W; N] = weights.clone();
 
-    for (w_j_t, p_j) in w_t.iter_mut().zip(predictions) {}
+    for (_w_j_t, _p_j) in w_t.iter_mut().zip(predictions) {}
 
     w_t
 }

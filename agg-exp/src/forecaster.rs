@@ -1,16 +1,29 @@
+///! Rules for the Combination and Weighing of Expert Advice.
 use crate::loss::Loss;
 
-trait ExpertForecaster<P, const N: usize> {
+/// A base for algorithms capable of prediction with expert advice.
+///
+/// An ExpertPredictor provides methods for:
+///   1. Given some 'N' experts' predictions, produce a prediction of
+///   type 'P'.
+///   2. Given those same experts' predictions and an environmentally
+///   revealed 'P', compute new weights for the next prediction.
+pub trait ExpertForecaster<P, const N: usize> {
+    /// Given expert predictions, produce a prediction.
     fn predict(&self, experts: &[P; N]) -> P;
+
+    /// Given those same expert predictions and the now revealed value,
+    /// update the internal weights to be utilized in the next
+    /// prediction.
     fn update(&mut self, experts: &[P; N], revealed: &P);
 }
 
-mod exp {
+pub mod exp {
     use super::*;
     use core::marker::PhantomData;
 
     /// The Exponentially Weighted Average Forecaster.
-    struct EWAF<L, W, const N: usize>
+    pub struct EWAF<L, W, const N: usize>
     where
         L: Loss<W>,
     {
