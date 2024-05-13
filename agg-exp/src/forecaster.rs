@@ -24,17 +24,14 @@ pub mod exp {
     use core::marker::PhantomData;
 
     /// The Exponentially Weighted Average Forecaster (PLG - pg. 14).
-    pub struct EWAF<L, W, const N: usize>
-    where
-        L: Loss<W>,
-    {
+    pub struct EWAF<L, W, const N: usize> {
         w: [W; N],
         phantom: PhantomData<L>,
     }
 
     impl<L, const N: usize> EWAF<L, f32, N>
     where
-        L: Loss<f32>,
+        L: Loss<f32, f32>,
     {
         /// Free paramter eta in relation to the time bound.
         fn eta(&self) -> f32 {
@@ -44,7 +41,7 @@ pub mod exp {
 
     impl<L, const N: usize> Default for EWAF<L, f32, N>
     where
-        L: Loss<f32>,
+        L: Loss<f32, f32>,
     {
         fn default() -> Self {
             Self {
@@ -57,7 +54,7 @@ pub mod exp {
     // The implementation from PLG.
     impl<L, const N: usize> ExpertForecaster<f32, N> for EWAF<L, f32, N>
     where
-        L: Loss<f32, Event = f32, Cost = f32>,
+        L: Loss<f32, f32>,
     {
         fn predict(&self, experts: &[f32; N]) -> f32 {
             // \hat{p_t} = \sum_{i=1}^{N} w_{i,t-1} f_{i,t} - (PLG - pg. 14)

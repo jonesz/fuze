@@ -9,4 +9,4 @@
 
 /// Routines for continual prediction with expert advice.
 pub mod forecaster;
-mod loss;
+pub mod loss;
