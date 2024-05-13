@@ -35,7 +35,26 @@ pub mod exp {
     {
         /// Free paramter eta in relation to the time bound.
         fn eta(&self) -> f32 {
-            todo!();
+            1.0f32
+            // todo!();
+        }
+
+        /// Given a known horizon `n`, compute the optimal \n parameter.
+        fn _eta_known_horizon(n: usize) -> f32 {
+            fn approx_sqrt(_x: f32) -> f32 {
+                todo!();
+            }
+
+            fn approx_ln(_x: usize) -> f32 {
+                todo!();
+            }
+
+            approx_sqrt((n as f32 / 2f32) * approx_ln(N))
+        }
+
+        /// An \eta parameter that varies based on the round number.
+        fn _eta_time_varying(t: usize) -> f32 {
+            todo!()
         }
     }
 
