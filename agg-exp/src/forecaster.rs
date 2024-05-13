@@ -1,4 +1,4 @@
-///! Rules for the Combination and Weighing of Expert Advice.
+/// Rules for the Combination and Weighing of Expert Advice.
 use crate::loss::Loss;
 
 /// A base for algorithms capable of prediction with expert advice.
