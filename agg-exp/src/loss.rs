@@ -1,9 +1,10 @@
 //! Loss functions.
 use core::iter::Sum;
-use core::ops::{Mul, Sub};
+use core::ops::{Div, Mul, Sub};
 
 /// Loss function.
 pub trait Loss<E, C> {
+    /// Compute the loss from a, b.
     fn l(a: &E, b: &E) -> C;
 }
 
@@ -58,13 +59,13 @@ where
     }
 }
 
-/// Mean Squared Error.
-pub fn mse<P>(t: &[P], p: &[P]) -> P
+/// MSE for 1-dimensional vectors.
+pub fn mse<const N: usize, T>(a: &[T; N], b: &[T; N]) -> T
 where
-    for<'a> &'a P: Sub<&'a P, Output = P>,
-    P: Mul<Output = P> + Sum,
+    for<'a> &'a T: Sub<Output = T>,
+    T: Mul<Output = T> + Div<Output = T> + Sum + From<usize>,
 {
-    todo!("1/n * l2(t, p)") // * l2(t, p)
+    a.iter().zip(b).map(|(a_t, b_t)| L2::l(a_t, b_t)).sum::<T>() / Into::<T>::into(N)
 }
 
 #[cfg(test)]
