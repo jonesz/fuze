@@ -96,9 +96,9 @@ pub mod exp {
             self.t += 1;
             let eta = self.eta();
 
-            // w_i = e^{-\eta \l(f_{i,t}, y_t)} - EECS598... "The Exponential Weights Algorithm".
+            // w_{i,t} = w_{i,t-1} e^{-\eta \l(f_{i,t}, y_t)} - EECS598... "The Exponential Weights Algorithm".
             for (w_i, p_i) in self.w.iter_mut().zip(experts) {
-                *w_i = f32::exp(-1.0f32 * eta * L::l(p_i, revealed));
+                *w_i *= f32::exp(-1.0f32 * eta * L::l(p_i, revealed));
             }
 
             // The below matches the second equation in `predict()`.
