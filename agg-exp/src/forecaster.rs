@@ -23,12 +23,14 @@ pub mod exp {
     use super::*;
     use core::marker::PhantomData;
 
+    #[derive(Debug)]
     enum EtaMethod {
         KnownHorizon(usize),
         RoundDependent,
     }
 
     /// The Exponentially Weighted Average Forecaster (PLG - pg. 14).
+    #[derive(Debug)]
     pub struct EWAF<L, W, const N: usize> {
         w: [W; N],
         eta: EtaMethod,
@@ -77,27 +79,37 @@ pub mod exp {
         L: Loss<f32, f32>,
     {
         fn predict(&self, experts: &[f32; N]) -> f32 {
-            // \hat{p_t} = \sum_{i=1}^{N} w_{i,t-1} f_{i,t} - (PLG - pg. 14)
-            self.w.iter().zip(experts).map(|(w, f)| w * f).sum::<f32>()
+            // \hat{p_t} = \frac{\sum_{i=1}^{N} w_{i,t-1} f_{i,t}} - (PLG - pg. 9)
+            //                  {\sum_{j=1}^{N} w_{j,t-1}}
+            self.w.iter().zip(experts).map(|(w, f)| w * f).sum::<f32>() / self.w.iter().sum::<f32>()
+
+            // For the below equation, consider the first prediction: with `w_i` all initialized
+            // to 1, the initial predictions won't be scaled! I'm going with the above which
+            // can be found in PLG and appears in "EECS598: Prediction and Learning, Lecture 3: The
+            // Exponential Weights Algorithm".
+
+            // \hat{p_t} = \frac{\sum_{i=1}^{N} w_{i,t-1} f_{i,t}} - (PLG - pg. 14)
+            // self.w.iter().zip(experts).map(|(w, f)| w * f).sum::<f32>()
         }
 
         fn update(&mut self, experts: &[f32; N], revealed: &f32) {
-            // There's no `exp()` within no-std, approximate it here.
-            // TODO: It'd be nice to have access to a HAL, or something defined by linking
-            // at compile-time.
-            fn approx_exp(x: f32) -> f32 {
-                // https://math.stackexchange.com/a/56064 ; e^z = \frac{(z+3)^2 + 3}{(z-3)^2 + 3}
-                ((x + 3.0) * (x + 3.0) + 3.0) / ((x - 3.0) * (x - 3.0) + 3.0)
+            self.t += 1;
+            let eta = self.eta();
+
+            // w_i = e^{-\eta \l(f_{i,t}, y_t)} - EECS598... "The Exponential Weights Algorithm".
+            for (w_i, p_i) in self.w.iter_mut().zip(experts) {
+                *w_i = f32::exp(-1.0f32 * eta * L::l(p_i, revealed));
             }
+
+            // The below matches the second equation in `predict()`.
 
             // w_{i,t} = \frac{w_{i,t-1} e^{-\eta \l(f_{i,t}, y_t)}}
             //                {\sum_{j=1}^N w_{j,t-1} e^{-\eta \l(f_{j,t-1},y_t)}}
             // (PLG - pg.14)
-            let eta = self.eta();
-            let bot = self.w.iter().zip(experts).map(|(w, f)| w * f).sum::<f32>();
-            for (w_i, p_i) in self.w.iter_mut().zip(experts) {
-                *w_i *= approx_exp(-1.0f32 * eta * L::l(p_i, revealed)) / bot;
-            }
+            // let bot = self.w.iter().sum::<f32>();
+            // for (w_i, p_i) in self.w.iter_mut().zip(experts) {
+            //     *w_i = f32::exp(-1.0f32 * eta * L::l(p_i, revealed)) / bot;
+            // }
         }
     }
 

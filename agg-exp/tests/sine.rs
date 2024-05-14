@@ -7,11 +7,11 @@ fn test_sine() {
     // two dumb, monotonic predictors. The cumulative loss should be
     // less than either of the experts.
 
-    const FREQ: f32 = 2.0f32;
+    const FREQ: f32 = 0.05f32;
     let environment =
         |t: usize| -> f32 { f32::sin(2.0 * std::f32::consts::PI * FREQ * (t as f32)) };
-    let expert_a = |p: &f32| -> f32 { p + 1.0f32 };
-    let expert_b = |p: &f32| -> f32 { p - 1.0f32 };
+    let expert_a = |p: &f32| -> f32 { p + 0.5f32 };
+    let expert_b = |p: &f32| -> f32 { p - 0.5f32 };
 
     let mut cumulative_loss = [0.0f32, 0.0f32, 0.0f32];
 
@@ -31,8 +31,8 @@ fn test_sine() {
         cumulative_loss[2] += L2::l(&p[1], &state);
     }
 
-    // The cumulative loss for the EWAF should be better than either
-    // of the experts.
-    assert!(cumulative_loss[0] > cumulative_loss[1]);
-    assert!(cumulative_loss[0] > cumulative_loss[2]);
+    // For this problem the cumulative loss for the EWAF should be
+    // smaller than either of the experts.
+    assert!(cumulative_loss[0] <= cumulative_loss[1]);
+    assert!(cumulative_loss[0] <= cumulative_loss[2]);
 }

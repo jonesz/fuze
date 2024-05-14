@@ -9,6 +9,7 @@ pub trait Loss<E, C> {
 }
 
 /// L1 loss.
+#[derive(Debug)]
 pub struct L1();
 
 impl<const N: usize> Loss<[f32; N], f32> for L1 {
@@ -34,6 +35,7 @@ impl Loss<f32, f32> for L1 {
 }
 
 /// L2 loss.
+#[derive(Debug)]
 pub struct L2();
 
 impl<T, const N: usize> Loss<[T; N], T> for L2
