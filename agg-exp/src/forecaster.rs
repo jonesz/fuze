@@ -23,9 +23,17 @@ pub mod exp {
     use super::*;
     use core::marker::PhantomData;
 
+    enum EtaMethod {
+        KnownHorizon(usize),
+        RoundDependent,
+    }
+
     /// The Exponentially Weighted Average Forecaster (PLG - pg. 14).
     pub struct EWAF<L, W, const N: usize> {
         w: [W; N],
+        eta: EtaMethod,
+        t: usize,
+
         phantom: PhantomData<L>,
     }
 
@@ -35,26 +43,17 @@ pub mod exp {
     {
         /// Free paramter eta in relation to the time bound.
         fn eta(&self) -> f32 {
-            1.0f32
-            // todo!();
-        }
+            // "2.2 An Optimal Bound", (PLG - pg. 16)
+            // \eta = \sqrt{8 ln{N} / n}
+            let kh = |n: usize| -> f32 { f32::sqrt(8.0f32 * f32::ln(N as f32) / n as f32) };
+            // "2.3 Bounds That Hold Uniformly over Time", (PLG - pg. 17)
+            // \eta = \sqrt{8 ln{N} / t}
+            let rd = |t: usize| -> f32 { f32::sqrt(8.0f32 * f32::ln(N as f32) / t as f32) };
 
-        /// Given a known horizon `n`, compute the optimal \n parameter.
-        fn _eta_known_horizon(n: usize) -> f32 {
-            fn approx_sqrt(_x: f32) -> f32 {
-                todo!();
+            match self.eta {
+                EtaMethod::KnownHorizon(n) => kh(n),
+                EtaMethod::RoundDependent => rd(self.t),
             }
-
-            fn approx_ln(_x: usize) -> f32 {
-                todo!();
-            }
-
-            approx_sqrt((n as f32 / 2f32) * approx_ln(N))
-        }
-
-        /// An \eta parameter that varies based on the round number.
-        fn _eta_time_varying(t: usize) -> f32 {
-            todo!()
         }
     }
 
@@ -65,6 +64,8 @@ pub mod exp {
         fn default() -> Self {
             Self {
                 w: [1.0; N],
+                eta: EtaMethod::RoundDependent,
+                t: 0usize,
                 phantom: PhantomData,
             }
         }
