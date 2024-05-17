@@ -24,16 +24,17 @@ pub mod exp {
     use core::marker::PhantomData;
 
     #[derive(Debug)]
-    enum EtaMethod {
+    enum EtaMethod<W> {
         KnownHorizon(usize),
         RoundDependent,
+        KnownLoss(W),
     }
 
     /// The Exponentially Weighted Average Forecaster (PLG - pg. 14).
     #[derive(Debug)]
     pub struct EWAF<L, W, const N: usize> {
         w: [W; N],
-        eta: EtaMethod,
+        eta: EtaMethod<W>,
         t: usize,
 
         phantom: PhantomData<L>,
@@ -51,10 +52,14 @@ pub mod exp {
             // "2.3 Bounds That Hold Uniformly over Time", (PLG - pg. 17)
             // \eta = \sqrt{8 ln{N} / t}
             let rd = |t: usize| -> f32 { f32::sqrt(8.0f32 * f32::ln(N as f32) / t as f32) };
+            // "2.4 An Improvement for Small Losses", (PLG - pg. 21)
+            // \ln{1 + \sqrt{(2 ln N) / l^\ast}}
+            let sm = |l: f32| -> f32 { f32::ln(1f32 + f32::sqrt(2f32 * f32::ln(N as f32) / l)) };
 
             match self.eta {
                 EtaMethod::KnownHorizon(n) => kh(n),
                 EtaMethod::RoundDependent => rd(self.t),
+                EtaMethod::KnownLoss(l_ast) => sm(l_ast),
             }
         }
     }
@@ -73,7 +78,7 @@ pub mod exp {
         }
     }
 
-    // The implementation from PLG.
+    // An implementation sourced from PLG and the Michigan EECS598 notes.
     impl<L, const N: usize> ExpertForecaster<f32, N> for EWAF<L, f32, N>
     where
         L: Loss<f32, f32>,
