@@ -23,10 +23,15 @@ pub mod exp {
     use super::*;
     use core::marker::PhantomData;
 
+    /// Methods for calculating the value \eta.
     #[derive(Debug)]
-    enum EtaMethod<W> {
+    pub enum EtaMethod<W> {
+        /// Horizon of 't' iterations; bound of \sqrt{(t/2)ln{N}}.
         KnownHorizon(usize),
+        /// A bound that holds uniformly over time; 2 * \sqrt{(n/2)ln{N}}.
         RoundDependent,
+        /// A bound that holds for a best expert with loss W;
+        /// \sqrt{2 * l^\ast ln{N}} + ln{N}
         KnownLoss(W),
     }
 
@@ -44,6 +49,14 @@ pub mod exp {
     where
         L: Loss<f32, f32>,
     {
+        /// Construct the EWAF with the prescribed method.
+        pub fn build(eta: EtaMethod<f32>) -> Self {
+            Self {
+                eta,
+                ..Default::default()
+            }
+        }
+
         /// Free paramter eta in relation to the time bound.
         fn eta(&self) -> f32 {
             // "2.2 An Optimal Bound", (PLG - pg. 16)
