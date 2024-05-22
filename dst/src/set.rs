@@ -7,6 +7,7 @@ pub trait SetOperations {
     fn intersection(&self, rhs: &Self) -> Self;
     /// Return the empty set.
     fn empty() -> Self;
+    fn not(&self) -> Self;
 }
 
 impl SetOperations for usize {
@@ -25,6 +26,10 @@ impl SetOperations for usize {
     /// Return the empty set.
     fn empty() -> Self {
         0usize
+    }
+
+    fn not(&self) -> Self {
+        !self
     }
 }
 
@@ -92,6 +97,10 @@ mod interval {
         /// Return the empty set.
         fn empty() -> Self {
             Self { buf: [None; N] }
+        }
+
+        fn not(&self) -> Self {
+            todo!();
         }
     }
 
