@@ -1,3 +1,4 @@
+//! A Rust implementation of topics within Dempster-Shafer Theory.
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 mod approx;
