@@ -1,43 +1,94 @@
 use crate::product;
 use crate::set::SetOperations;
+use core::marker::PhantomData;
+
+mod hm {
+    // An allocation free HashMap.
+    pub(super) struct NoAllocHashMap<const N: usize, K, V> {
+        buf: [(K, V); N],
+    }
+
+    impl<const N: usize, K, V> NoAllocHashMap<N, K, V>
+    where
+        K: core::hash::Hash,
+    {
+        /// Return the underlying buf to the caller.
+        pub fn buf<'a>(&'a self) -> &'a [(K, V); N] {
+            &self.buf
+        }
+
+        /// Create a new NoAllocHashMap given a function to
+        /// fill the underlying buffer.
+        pub fn new(fill: impl Fn() -> (K, V)) -> Self {
+            Self {
+                buf: core::array::from_fn(|_| fill()),
+            }
+        }
+
+        /// TODO: There's no hasher within core...
+        pub fn insert<H: core::hash::Hasher>(&mut self, k: K, v: V) {
+            todo!();
+        }
+
+        pub fn get(&mut self, k: &K) -> Option<&V> {
+            todo!()
+        }
+    }
+}
 
 pub trait CombRule<S: SetOperations, T> {
-    fn comb_q(bba: &[&[(S, f32)]], q: &S) -> T;
-    fn comb<const N: usize, A>(bba: &[&[(S, T)]], approx_scheme: A) -> [(S, T); N]
+    fn comb_q<const D: usize>(bba: &[&[(S, f32)]; D], q: &S) -> T;
+    // TODO: We need 'const generic exprs' in stable to avoid the N2 constraint...
+    /// Combine a set of BBAs where we initially compute an approximation, and then after each combination
+    /// `m1 comb m2` we compute an approximation.
+    fn comb<const N: usize, const N2: usize, A>(bba: &[&[(S, T)]], approx_scheme: A) -> [(S, T); N]
     where
         A: Fn(&[(S, T)]) -> [(S, T); N];
 }
 
-pub struct Dempster();
+pub struct Dempster<S, T>(PhantomData<S>, PhantomData<T>);
 
-impl<S> CombRule<S, f32> for Dempster
+impl<S> Dempster<S, f32> where S: SetOperations {}
+
+impl<S> CombRule<S, f32> for Dempster<S, f32>
 where
-    S: SetOperations,
+    S: SetOperations + core::hash::Hash + Copy, // TODO: Get rid of the `Copy`.
 {
-    fn comb_q(bba: &[&[(S, f32)]], q: &S) -> f32 {
-        let (k, m) = product::CartesianProduct::new(bba)
-            .map(|item| {
-                item.into_iter()
-                    .reduce(|(acc_s, acc_m), (set, mass)| (acc_s.intersection(&set), acc_m * mass))
-                    .unwrap()
-            })
-            .fold((0.0f32, 0.0f32), |(acc_k, acc_m), (set, mass)| {
-                // K = Sum{A = \empty} m; M = Sum{A = Q} m.
-                match (set.is_empty(), set.is_subset(&q) && q.is_subset(&set)) {
-                    (true, false) => (acc_k + mass, acc_m),
-                    (false, true) => (acc_k, acc_m + mass),
-                    (_, _) => (acc_k, acc_m),
-                }
-            });
-
-        (1.0 / (1.0 - k)) * m
+    fn comb_q<const D: usize>(bba: &[&[(S, f32)]; D], q: &S) -> f32 {
+        todo!();
     }
 
-    fn comb<const N: usize, A>(bba: &[&[(S, f32)]], scheme: A) -> [(S, f32); N]
+    fn comb<const N: usize, const N2: usize, A>(bba: &[&[(S, f32)]], scheme: A) -> [(S, f32); N]
     where
         A: Fn(&[(S, f32)]) -> [(S, f32); N],
     {
-        todo!();
+        // TODO: See the comment within the trait about 'const generic exprs'. There's `N * N`
+        // intersections to compute between each subset after we compute the initial approximation
+        // (&[(S, f32)] -> [(S, f32); N]); these have to be placed on the stack...
+        // Below function is effectively an unitialized arr (TODO: Maybe we should use `MaybeUninit`?).
+        assert!(N2 == N * N);
+        fn build_arr<S: SetOperations, const Z: usize>() -> [(S, f32); Z] {
+            core::array::from_fn(|_| (S::empty(), 0.0f32))
+        }
+
+        bba.iter()
+            .map(|e| scheme(e)) // Compute the initial approximation.
+            .fold(build_arr::<S, N>(), |acc, e| {
+                let mut map = hm::NoAllocHashMap::<N2, S, f32>::new(|| (S::empty(), 0.0f32));
+                for (acc_i, e_i) in acc.iter().flat_map(|x1| e.iter().map(move |x2| (x1, x2))) {
+                    // B \cap C = m1(B) * m2(C)
+                    // map.insert(acc_i.0.intersection(&e_i.0), acc_i.1 * e_i.1);
+                }
+
+                // Compute the conflict \frac{1}{1-K}.
+                let conflict = 1f32 / (1f32 - map.get(&S::empty()).unwrap_or(&1.0f32));
+                let mut tmp = build_arr::<S, N2>();
+                for (tmp_i, elem_i) in tmp.iter_mut().zip(map.buf()) {
+                    *tmp_i = (elem_i.0, elem_i.1 * conflict);
+                }
+
+                scheme(&tmp)
+            })
     }
 }
 
