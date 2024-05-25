@@ -3,6 +3,35 @@ use crate::set::SetOperations;
 use core::marker::PhantomData;
 
 mod hm {
+    use core::hash::{Hash, Hasher};
+
+    mod hm_hash {
+        use super::*;
+        // TODO: We could implement an actual *fast* hash (or fetch one off crates),
+        // because this is within a hot loop.
+
+        #[derive(Default)]
+        pub(super) struct XorshiftHasher(u64);
+
+        impl Hasher for XorshiftHasher {
+            fn write(&mut self, bytes: &[u8]) {
+                // Fold each bit in with a XorShift64 step.
+                self.0 = bytes.iter().fold(self.0, |acc, elem| {
+                    let mut state: u64 = acc;
+                    state ^= Into::<u64>::into(*elem);
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    state
+                })
+            }
+
+            fn finish(&self) -> u64 {
+                self.0
+            }
+        }
+    }
+
     // An allocation free HashMap.
     pub(super) struct NoAllocHashMap<const N: usize, K, V> {
         buf: [(K, V); N],
@@ -10,7 +39,7 @@ mod hm {
 
     impl<const N: usize, K, V> NoAllocHashMap<N, K, V>
     where
-        K: core::hash::Hash,
+        K: Hash,
     {
         /// Return the underlying buf to the caller.
         pub fn buf<'a>(&'a self) -> &'a [(K, V); N] {
@@ -26,7 +55,7 @@ mod hm {
         }
 
         /// TODO: There's no hasher within core...
-        pub fn insert<H: core::hash::Hasher>(&mut self, k: K, v: V) {
+        pub fn insert(&mut self, k: K, v: V) {
             todo!();
         }
 
