@@ -2,35 +2,40 @@ use crate::product;
 use crate::set::SetOperations;
 use core::marker::PhantomData;
 
-mod hm {
-    use core::hash::{Hash, Hasher};
+mod hash {
+    use core::hash::Hasher;
 
-    mod hm_hash {
-        use super::*;
-        // TODO: We could implement an actual *fast* hash (or fetch one off crates),
-        // because this is within a hot loop.
+    // FNV-1a, taken from wikipedia.
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
 
-        #[derive(Default)]
-        pub(super) struct XorshiftHasher(u64);
+    #[derive(Debug)]
+    pub(super) struct FNV1A(u64);
 
-        impl Hasher for XorshiftHasher {
-            fn write(&mut self, bytes: &[u8]) {
-                // Fold each bit in with a XorShift64 step.
-                self.0 = bytes.iter().fold(self.0, |acc, elem| {
-                    let mut state: u64 = acc;
-                    state ^= Into::<u64>::into(*elem);
-                    state ^= state << 13;
-                    state ^= state >> 7;
-                    state ^= state << 17;
-                    state
-                })
-            }
-
-            fn finish(&self) -> u64 {
-                self.0
-            }
+    impl Default for FNV1A {
+        fn default() -> Self {
+            Self(FNV_OFFSET_BASIS)
         }
     }
+
+    impl Hasher for FNV1A {
+        fn write(&mut self, bytes: &[u8]) {
+            self.0 = bytes.iter().fold(self.0, |state, byte| {
+                let mut tmp = state;
+                tmp ^= Into::<u64>::into(*byte);
+                tmp *= FNV_PRIME;
+                tmp
+            })
+        }
+
+        fn finish(&self) -> u64 {
+            self.0
+        }
+    }
+}
+
+mod hashmap {
+    use core::hash::{Hash, Hasher};
 
     // An allocation free HashMap.
     pub(super) struct NoAllocHashMap<const N: usize, K, V> {
