@@ -34,34 +34,60 @@ mod hm {
 
     // An allocation free HashMap.
     pub(super) struct NoAllocHashMap<const N: usize, K, V> {
-        buf: [(K, V); N],
+        buf: [Option<(K, V)>; N],
     }
 
     impl<const N: usize, K, V> NoAllocHashMap<N, K, V>
     where
-        K: Hash,
+        K: Hash + Eq + Clone,
+        V: core::ops::Add<Output = V> + Clone + Copy,
     {
+        fn beg(key: &K) -> usize {
+            let mut state = hm_hash::XorshiftHasher::default();
+            key.hash(&mut state);
+            // Compute the idx; if for some reason we can't convert it to
+            // a usize, default to the start of the arr.
+            state.finish().try_into().unwrap_or(0usize) % N
+        }
+
         /// Return the underlying buf to the caller.
-        pub fn buf<'a>(&'a self) -> &'a [(K, V); N] {
+        pub fn buf<'a>(&'a self) -> &'a [Option<(K, V)>; N] {
             &self.buf
         }
 
-        /// Create a new NoAllocHashMap given a function to
-        /// fill the underlying buffer.
+        /// Create a new NoAllocHashMap given a function to fill the underlying buffer.
         pub fn new(fill: impl Fn() -> (K, V)) -> Self {
             Self {
-                buf: core::array::from_fn(|_| fill()),
+                buf: core::array::from_fn(|_| Some(fill())),
             }
         }
 
-        /// TODO: There's no hasher within core...
-        pub fn insert(&mut self, k: K, v: V) {
-            todo!();
+        pub fn insert(&mut self, key: K, value: V) {
+            for i in 0..N {
+                let idx = Self::beg(&key) + i % N;
+                // let (buf_i_k, _) = self.buf.get(idx).unwrap().unwrap(); // Is this better?
+                let (buf_i_k, _) = self.buf.get(idx).cloned().flatten().unwrap();
+                // If we've encountered the key, add the mass, then exit.
+                if buf_i_k == key {
+                    let (_, ref mut mass) = self.buf.get_mut(idx).unwrap().as_mut().unwrap();
+                    *mass = *mass + value;
+                    break; // We need to exit at this point.
+                }
+            }
         }
 
-        pub fn get(&mut self, k: &K) -> Option<&V> {
+        pub fn get(&mut self, key: &K) -> Option<&V> {
+            for i in 0..N {
+                let idx = Self::beg(&key) + i % N;
+                todo!();
+            }
+
             todo!()
         }
+    }
+
+    mod tests {
+        use super::*;
     }
 }
 
