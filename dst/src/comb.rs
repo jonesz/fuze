@@ -1,11 +1,12 @@
-use crate::product;
 use crate::set::SetOperations;
+use core::hash::Hash;
 use core::marker::PhantomData;
 
+// TODO: Some sort of ARX cipher might end up being faster? Would remove the mul operation.
 mod hash {
     use core::hash::Hasher;
 
-    // FNV-1a, taken from wikipedia.
+    // FNV-1a; taken from Wikipedia.
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;
 
@@ -23,7 +24,7 @@ mod hash {
             self.0 = bytes.iter().fold(self.0, |state, byte| {
                 let mut tmp = state;
                 tmp ^= Into::<u64>::into(*byte);
-                tmp *= FNV_PRIME;
+                tmp = tmp.overflowing_mul(FNV_PRIME).0;
                 tmp
             })
         }
@@ -32,67 +33,161 @@ mod hash {
             self.0
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use core::hash::Hash;
+
+        #[test]
+        fn test_fnv1a() {
+            let mut state = FNV1A::default();
+            "Hello, World".hash(&mut state);
+            assert_ne!(state.finish(), 0u64);
+        }
+    }
 }
 
 mod hashmap {
+    use super::hash::FNV1A as HashFN;
     use core::hash::{Hash, Hasher};
+    use core::ops::{Add, Mul};
 
-    // An allocation free HashMap.
+    /// An allocation free HashMap with a few useful features suited for our usage.
     pub(super) struct NoAllocHashMap<const N: usize, K, V> {
+        // At each iteration we compute an intersection which isn't used elsewhere;
+        // just have this buffer own the KV pairs.
         buf: [Option<(K, V)>; N],
+    }
+
+    impl<const N: usize, K, V> Default for NoAllocHashMap<N, K, V> {
+        fn default() -> Self {
+            Self {
+                buf: core::array::from_fn(|_| None),
+            }
+        }
     }
 
     impl<const N: usize, K, V> NoAllocHashMap<N, K, V>
     where
-        K: Hash + Eq + Clone,
-        V: core::ops::Add<Output = V> + Clone + Copy,
+        K: Eq + Hash,
+        V: Add<Output = V> + Mul<Output = V> + Copy,
     {
-        fn beg(key: &K) -> usize {
-            let mut state = hm_hash::XorshiftHasher::default();
+        // Determine the offset to start at within our linear probe.
+        fn compute_offset(key: &K) -> usize {
+            let mut state = HashFN::default();
             key.hash(&mut state);
-            // Compute the idx; if for some reason we can't convert it to
-            // a usize, default to the start of the arr.
-            state.finish().try_into().unwrap_or(0usize) % N
+            // 'as'/truncation is fine -- it's a computed offset.
+            (state.finish() as usize) % N
+        }
+
+        /// Scale the entire Value portion of the HashMap by some value.
+        pub fn scale(&mut self, scale: V) {
+            self.buf
+                .iter_mut()
+                .flatten()
+                .for_each(|(_, v)| *v = *v * scale);
         }
 
         /// Return the underlying buf to the caller.
-        pub fn buf<'a>(&'a self) -> &'a [Option<(K, V)>; N] {
+        pub fn buf(&self) -> &[Option<(K, V)>; N] {
             &self.buf
         }
 
-        /// Create a new NoAllocHashMap given a function to fill the underlying buffer.
-        pub fn new(fill: impl Fn() -> (K, V)) -> Self {
-            Self {
-                buf: core::array::from_fn(|_| Some(fill())),
+        /// Attempt to insert a value into the HashMap; if it exists, add
+        /// the mass value `v` to the existing store.
+        pub fn insert(&mut self, k: K, v: V) {
+            let offset = Self::compute_offset(&k);
+
+            // TODO: It would be nice to be able to do this with iterators, but
+            // we need to start from a specific offset to approach O(1);
+            // perhaps it's just flatout faster to use a straight arr and just
+            // bruteforce search -- we'd get to use the iterator primitives!
+            // Each intersection is unlikely to produce `N` values...
+
+            for i in 0..N {
+                let idx = (offset + i) % N;
+                if let Some(mem) = self.buf.get_mut(idx) {
+                    if let Some(buf_i) = mem.as_mut() {
+                        // A value has been stored here; check if this is where the
+                        // insertion belongs via key equality.
+                        let (buf_k, buf_m) = buf_i;
+                        if buf_k == &k {
+                            *buf_m = *buf_m + v;
+                            return;
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        // This index is a `None`, so we store the insertion at
+                        // the first available value.
+                        *mem = Some((k, v));
+                        return;
+                    }
+                }
+                unreachable!("Attempted to access an out-of-bounds index.");
             }
+            unreachable!("Table was filled; `N` parameter likely wrong.");
         }
 
-        pub fn insert(&mut self, key: K, value: V) {
+        /// Return the value for a key with the table.
+        pub fn get(&mut self, k: &K) -> Option<&V> {
+            let offset = Self::compute_offset(k);
             for i in 0..N {
-                let idx = Self::beg(&key) + i % N;
-                // let (buf_i_k, _) = self.buf.get(idx).unwrap().unwrap(); // Is this better?
-                let (buf_i_k, _) = self.buf.get(idx).cloned().flatten().unwrap();
-                // If we've encountered the key, add the mass, then exit.
-                if buf_i_k == key {
-                    let (_, ref mut mass) = self.buf.get_mut(idx).unwrap().as_mut().unwrap();
-                    *mass = *mass + value;
-                    break; // We need to exit at this point.
+                let idx = (offset + i) % N;
+                if let Some(buf_i) = self.buf.get(idx) {
+                    if let Some((buf_k, buf_m)) = buf_i.as_ref() {
+                        if buf_k == k {
+                            return Some(buf_m);
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        return None;
+                    }
+                } else {
+                    unreachable!("Attempted to access an out-of-bounds index.");
                 }
             }
-        }
-
-        pub fn get(&mut self, key: &K) -> Option<&V> {
-            for i in 0..N {
-                let idx = Self::beg(&key) + i % N;
-                todo!();
-            }
-
-            todo!()
+            None
         }
     }
 
     mod tests {
         use super::*;
+
+        const N: usize = 16;
+
+        fn default_table() -> NoAllocHashMap<N, &'static str, f32> {
+            let mut hm = NoAllocHashMap::default();
+
+            hm.insert("Hello", 0.0f32);
+            hm.insert("World", 1.0f32);
+
+            hm
+        }
+
+        #[test]
+        fn test_insert_and_get() {
+            let mut hm = default_table();
+
+            assert!(hm.get(&"Hello").is_some_and(|x| *x == 0.0f32));
+            hm.insert("Hello", 0.1f32);
+            assert!(hm.get(&"Hello").is_some_and(|x| *x == 0.1f32));
+            assert!(hm.get(&"World").is_some_and(|x| *x == 1.0f32));
+
+            hm.insert("!", 1995.0f32);
+            assert!(hm.get(&"!").is_some_and(|x| *x == 1995.0f32));
+        }
+
+        #[test]
+        fn test_scale() {
+            let mut hm = default_table();
+
+            hm.scale(5.0f32);
+            assert!(hm.get(&"Hello").is_some_and(|x| *x == 0.0f32));
+            assert!(hm.get(&"World").is_some_and(|x| *x == 5.0f32));
+        }
     }
 }
 
@@ -112,7 +207,7 @@ impl<S> Dempster<S, f32> where S: SetOperations {}
 
 impl<S> CombRule<S, f32> for Dempster<S, f32>
 where
-    S: SetOperations + core::hash::Hash + Copy, // TODO: Get rid of the `Copy`.
+    S: SetOperations + Hash + Copy, // TODO: Get rid of the `Copy`.
 {
     fn comb_q<const D: usize>(bba: &[&[(S, f32)]; D], q: &S) -> f32 {
         todo!();
@@ -134,20 +229,18 @@ where
         bba.iter()
             .map(|e| scheme(e)) // Compute the initial approximation.
             .fold(build_arr::<S, N>(), |acc, e| {
-                let mut map = hm::NoAllocHashMap::<N2, S, f32>::new(|| (S::empty(), 0.0f32));
+                let mut map = hashmap::NoAllocHashMap::<N2, S, f32>::default();
                 for (acc_i, e_i) in acc.iter().flat_map(|x1| e.iter().map(move |x2| (x1, x2))) {
                     // B \cap C = m1(B) * m2(C)
-                    // map.insert(acc_i.0.intersection(&e_i.0), acc_i.1 * e_i.1);
+                    map.insert(acc_i.0.intersection(&e_i.0), acc_i.1 * e_i.1);
                 }
 
-                // Compute the conflict \frac{1}{1-K}.
-                let conflict = 1f32 / (1f32 - map.get(&S::empty()).unwrap_or(&1.0f32));
-                let mut tmp = build_arr::<S, N2>();
-                for (tmp_i, elem_i) in tmp.iter_mut().zip(map.buf()) {
-                    *tmp_i = (elem_i.0, elem_i.1 * conflict);
-                }
+                // Compute the conflict \frac{1}{1-K} and then scale the arr..
+                let conflict = 1f32 / (1f32 - map.get(&S::empty()).unwrap_or(&0.0f32));
+                map.scale(conflict);
 
-                scheme(&tmp)
+                // scheme(map.buf().iter().flatten());
+                todo!();
             })
     }
 }
@@ -156,24 +249,7 @@ pub fn comb_dempster_q<const N: usize, S>(bba_s: [&[(S, f32)]; N], q: S) -> f32
 where
     S: Copy + crate::set::SetOperations,
 {
-    // TODO: Does this first `map` "complete", placing a massive value onto the
-    // stack? The below `fold` can be computed for each iteration of the `map`.
-    let (k, m) = product::CartesianProduct::new(bba_s)
-        .map(|item| {
-            item.into_iter()
-                .reduce(|(acc_s, acc_m), (set, mass)| (acc_s.intersection(&set), acc_m * mass))
-                .unwrap()
-        })
-        .fold((0.0f32, 0.0f32), |(acc_k, acc_m), (set, mass)| {
-            // K = Sum{A = \empty} m; M = Sum{A = Q} m.
-            match (set.is_empty(), set.is_subset(&q) && q.is_subset(&set)) {
-                (true, false) => (acc_k + mass, acc_m),
-                (false, true) => (acc_k, acc_m + mass),
-                (_, _) => (acc_k, acc_m),
-            }
-        });
-
-    (1.0 / (1.0 - k)) * m
+    todo!();
 }
 
 #[cfg(test)]

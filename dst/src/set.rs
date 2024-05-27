@@ -1,4 +1,4 @@
-pub trait SetOperations {
+pub trait SetOperations: Eq {
     /// Return whether this is a subset of RHS.
     fn is_subset(&self, rhs: &Self) -> bool;
     /// Return whether this is the empty set.
@@ -33,6 +33,7 @@ impl SetOperations for usize {
     }
 }
 
+/*
 mod interval {
     use super::SetOperations;
     use core::cmp::Ord;
@@ -132,6 +133,7 @@ mod interval {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
