@@ -5,21 +5,21 @@ use core::iter::Sum;
 use core::ops::Sub;
 
 /// Compute the belief of `Q` given a BBA.
-pub fn bel<'a, S, T>(bba: &'a [(S, T)], q: &S) -> T
+pub fn bel<'a, S, T>(bba: impl IntoIterator<Item = &'a (S, T)>, q: &S) -> T
 where
-    S: SetOperations,
+    S: SetOperations + 'a,
     T: Sum<&'a T> + 'a,
 {
-    bba.iter()
+    bba.into_iter()
         .filter(|(p, _)| p.is_subset(q))
         .map(|(_, mass)| mass)
         .sum()
 }
 
 /// Compute the plausability of 'Q' given a BBA.
-pub fn pl<'a, S, T>(bba: &'a [(S, T)], q: &S) -> T
+pub fn pl<'a, S, T>(bba: impl IntoIterator<Item = &'a (S, T)>, q: &S) -> T
 where
-    S: SetOperations,
+    S: SetOperations + 'a,
     T: Sum<&'a T> + 'a + Sub<Output = T> + From<u8>,
 {
     T::from(1u8) - bel(bba, &q.not())
