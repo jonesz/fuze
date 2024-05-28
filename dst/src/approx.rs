@@ -6,6 +6,13 @@
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
 
+pub trait Approximation<S, T> {
+    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)>>(x: I) -> [(S, T); N]
+    where
+        S: 'a,
+        T: 'a;
+}
+
 /// BPQ structures that are useful for keeping track of the `k` largest elements.
 mod bpq {
 
