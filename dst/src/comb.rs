@@ -20,16 +20,22 @@ mod store {
 
     impl<const N: usize, K, V> LinearStore<N, K, V>
     where
+        K: Eq,
         V: core::ops::MulAssign + Copy,
     {
         pub fn insert(&mut self, k: K, v: V) {
-            unimplemented!();
+            unimplemented!()
         }
 
+        /// Get the associated value for a passed key.
         pub fn get(&self, k: &K) -> Option<&V> {
-            unimplemented!();
+            self.buf.iter().find_map(|opt| {
+                opt.as_ref()
+                    .and_then(|(a, b)| if k == a { Some(b) } else { None })
+            })
         }
 
+        /// Get the underlying buffer for this struct.
         pub fn buf(&self) -> &[Option<(K, V)>; N] {
             &self.buf
         }
