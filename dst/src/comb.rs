@@ -95,6 +95,7 @@ where
 
                 // Compute the conflict \frac{1}{1-K} and then scale the arr..
                 let conflict = 1f32 / (1f32 - store.get(&S::empty()).unwrap_or(&0.0f32));
+                store.scale(conflict);
                 A::approx(store.buf().iter().flatten())
             })
     }
