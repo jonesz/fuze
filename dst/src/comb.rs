@@ -4,6 +4,8 @@ use core::hash::Hash;
 use core::marker::PhantomData;
 
 mod store {
+    use core::ops::{AddAssign, MulAssign};
+
     pub(super) struct LinearStore<const N: usize, K, V> {
         buf: [Option<(K, V)>; N],
     }
@@ -21,10 +23,22 @@ mod store {
     impl<const N: usize, K, V> LinearStore<N, K, V>
     where
         K: Eq,
-        V: core::ops::MulAssign + Copy,
+        V: MulAssign + AddAssign + Copy,
     {
         pub fn insert(&mut self, k: K, v: V) {
-            unimplemented!()
+            let mem = self
+                .buf
+                .iter_mut()
+                .find(|opt| opt.is_none() || opt.as_ref().is_some_and(|(a, _)| &k == a))
+                .expect("Unable to find a position; `N` const likely wrong.");
+
+            // TODO: I couldn't find an `insert` that would work; is there a way to
+            // dump the below and utilize the `Option` API?
+            if let Some((_, b)) = mem {
+                *b += v;
+            } else {
+                *mem = Some((k, v));
+            }
         }
 
         /// Get the associated value for a passed key.
@@ -96,6 +110,8 @@ where
                 // Compute the conflict \frac{1}{1-K} and then scale the arr..
                 let conflict = 1f32 / (1f32 - store.get(&S::empty()).unwrap_or(&0.0f32));
                 store.scale(conflict);
+
+                // Compute the approximation.
                 A::approx(store.buf().iter().flatten())
             })
     }
