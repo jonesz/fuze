@@ -1,22 +1,25 @@
+//! Combination rules for Dempster-Shafer Theory.
 use crate::approx::Approximation;
 use crate::set::SetOperations;
-use core::hash::Hash;
 use core::marker::PhantomData;
 
 mod store {
     use core::ops::{AddAssign, MulAssign};
 
+    /// A linear store, where insertions/gets are started from the zero'th
+    /// position.
     pub(super) struct LinearStore<const N: usize, K, V> {
         buf: [Option<(K, V)>; N],
     }
 
     impl<const N: usize, K, V> Default for LinearStore<N, K, V>
     where
-        K: Copy,
         V: Copy,
     {
         fn default() -> Self {
-            Self { buf: [None; N] }
+            Self {
+                buf: core::array::from_fn(|_| None),
+            }
         }
     }
 
@@ -25,26 +28,29 @@ mod store {
         K: Eq,
         V: MulAssign + AddAssign + Copy,
     {
+        /// Insert a key-value pair into the store.
         pub fn insert(&mut self, k: K, v: V) {
             let mem = self
                 .buf
                 .iter_mut()
+                // The iterator is sequential (0, 1, ...), so `None` will occur after all
+                // `Some(x)` have been encountered.
                 .find(|opt| opt.is_none() || opt.as_ref().is_some_and(|(a, _)| &k == a))
                 .expect("Unable to find a position; `N` const likely wrong.");
 
-            // TODO: I couldn't find an `insert` that would work; is there a way to
-            // dump the below and utilize the `Option` API?
-            if let Some((_, b)) = mem {
-                *b += v;
+            // Within `Option`, there's no clean API to `insert` here without the branch.
+            // TODO: Attempt to find one.
+            if let Some((_, m)) = mem {
+                *m += v;
             } else {
-                *mem = Some((k, v));
+                mem.insert((k, v));
             }
         }
 
         /// Get the associated value for a passed key.
         pub fn get(&self, k: &K) -> Option<&V> {
             self.buf.iter().find_map(|opt| {
-                opt.as_ref()
+                opt.as_ref() // `find_map` returns the first `Some(b)` encountered.
                     .and_then(|(a, b)| if k == a { Some(b) } else { None })
             })
         }
@@ -61,6 +67,41 @@ mod store {
             });
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        const N: usize = 8;
+
+        // Construct the default store for testing.
+        fn default_store() -> LinearStore<N, usize, usize> {
+            let mut store = LinearStore::<N, usize, usize>::default();
+            store.insert(0, 1);
+            store.insert(1, 2);
+            store.insert(2, 4);
+            store
+        }
+
+        #[test]
+        fn test_insert_get() {
+            let mut store = default_store();
+
+            assert!(store.get(&0).is_some());
+            assert_eq!(store.get(&0).unwrap(), &1);
+
+            assert!(store.get(&3).is_none());
+            assert_eq!(store.get(&3), None);
+
+            store.insert(0, 10);
+            assert!(store.get(&0).is_some());
+            assert_eq!(store.get(&0).unwrap(), &11);
+
+            store.insert(4, 5);
+            assert!(store.get(&4).is_some());
+            assert_eq!(store.get(&0).unwrap(), &5);
+        }
+    }
 }
 
 pub trait CombRule<S: SetOperations, T> {
@@ -68,7 +109,7 @@ pub trait CombRule<S: SetOperations, T> {
     /// Combine a set of BBAs where we initially compute an approximation, and then after each combination
     /// `m1 comb m2` we compute an approximation.
     fn comb<'a, const N: usize, const N2: usize, A>(
-        bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, T)>>,
+        bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, T)> + Clone>,
     ) -> [(S, T); N]
     where
         A: Approximation<S, T>,
@@ -80,10 +121,10 @@ pub struct Dempster<S, T>(PhantomData<S>, PhantomData<T>);
 
 impl<S> CombRule<S, f32> for Dempster<S, f32>
 where
-    S: SetOperations + Hash + Copy, // TODO: Get rid of the `Copy`.
+    S: SetOperations + Copy, // TODO: Get rid of the `Copy`.
 {
     fn comb<'a, const N: usize, const N2: usize, A>(
-        bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, f32)>>,
+        bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, f32)> + Clone>,
     ) -> [(S, f32); N]
     where
         A: Approximation<S, f32>,
@@ -118,7 +159,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
