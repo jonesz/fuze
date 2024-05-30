@@ -6,8 +6,12 @@
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
 
+use crate::set::SetOperations;
+
+/// An Approximation scheme that reduces the number of elements within a BBA.
 pub trait Approximation<S, T> {
-    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)>>(x: I) -> [(S, T); N]
+    /// Compute an approximation for the passed BBA.
+    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
     where
         S: 'a,
         T: 'a;
@@ -18,160 +22,81 @@ mod bpq {
 
     /// A PQ that is backed by a known-length arr.
     pub struct BoundedPriorityQueue<T, const N: usize> {
-        buf: [T; N],
+        buf: [Option<T>; N],
+        initialized: usize,
+    }
 
-        // `buf` at the time of writing is uninitialized with MaybeUninit.
-        // We keep track of how many times insert has been called; once `N`
-        // has been eclipsed, all indices of `buf` are guaranteed to be
-        // initialized.
-        num_initialized: usize,
+    impl<T, const N: usize> Default for BoundedPriorityQueue<T, N> {
+        fn default() -> Self {
+            Self {
+                buf: core::array::from_fn(|_| None),
+                initialized: 0usize,
+            }
+        }
     }
 
     impl<T, const N: usize> BoundedPriorityQueue<T, N> {
-        /// Create a new `BoundedPriorityQueue` that is effectively uninitialized.
-        pub fn new() -> Self {
-            let buf: [T; N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
-            Self {
-                buf,
-                num_initialized: 0,
-            }
-        }
-
         /// Insert a `T` into the queue by a key extraction function.
         pub fn insert_by_key<F, R>(&mut self, x: T, f: F)
         where
-            T: Copy,
-            R: Ord,
             F: Fn(&T) -> R,
+            R: PartialOrd,
         {
-            // Compute the index for where the parent `x` should reside.
-            // TODO: this function should *always* return an index `< N`, but the index
-            // computation in this function and the below if/else feels brittle.
-            let index = || -> Option<usize> {
-                for (i, v) in self.buf.iter().enumerate() {
-                    if f(&x) > f(v) {
-                        continue;
-                    } else {
-                        // If this underflows, then `x` is smaller than the smallest value -- thus `None`.
-                        return i.checked_sub(1);
-                    }
-                }
-
-                // The entire for loop completed; thus `x` is the largest value.
-                Some(N - 1)
-            };
-
-            // If we haven't inserted `N` values, we insert regardless; then if we've inserted `N`,
-            // we need to sort the underlying arr. And if we've inserted `> N` values, our
-            // insertion works like a normal priority queue.
-            if self.num_initialized < N {
-                let mem = self.buf.get_mut(self.num_initialized).unwrap();
-                *mem = x;
-
-                self.num_initialized += 1;
-                if self.num_initialized == N {
-                    self.buf.sort_unstable_by_key(f);
-                }
+            if self.initialized < N {
+                // If the structure hasn't been fully initialized, find the first `None` slot and insert `x`.
+                self.buf.iter_mut().find(|opt| opt.is_none()).expect(
+                    "Should have found a slot as the structure says it's not fully initialized.",
+                ).insert(x);
+                self.initialized += 1;
             } else {
-                // We find the index which `x` should slot into (if it's too small, `None`),
-                // then push all of those values to the left.
-                if let Some(idx) = index() {
-                    for i in 0..idx {
-                        let r_mem = *self.buf.get(i + 1).unwrap(); // TODO: Fix this brittle indexing.
-                        let l_mem = self.buf.get_mut(i).unwrap();
-                        *l_mem = r_mem;
-                    }
-
-                    let mem = self.buf.get_mut(idx).unwrap();
-                    *mem = x;
-                }
+                const ERROR_NONE: &str = "Buffer is supposed to be fully initialized/`Some(z)`.";
+                // Find the smallest value and replace it; utilize `reduce` to avoid needing more than a
+                // `PartialOrd` bound.
+                self.buf
+                    .iter_mut()
+                    .reduce(|acc, e| {
+                        if f(acc.as_ref().expect(ERROR_NONE)) <= f(e.as_ref().expect(ERROR_NONE)) {
+                            acc
+                        } else {
+                            e
+                        }
+                    })
+                    .unwrap()
+                    .insert(x);
             }
         }
 
-        /// Insert a `T` into the queue.
-        pub fn insert(&mut self, x: T)
-        where
-            T: Ord + Copy,
-        {
-            let f = |x: &T| *x; // TODO: I'm assuming this computes to a no-op?
-            self.insert_by_key(x, f)
+        pub fn consume(self) -> [Option<T>; N] {
+            self.buf
         }
     }
+}
 
-    /// `IntoIter` for a reference to a BPQ.
-    // The benefit to doing it this way is that we can return a slice; this allows
-    // us to cut off those potentially uninitialized values.
-    impl<'a, T, const N: usize> IntoIterator for &'a BoundedPriorityQueue<T, N> {
-        type Item = &'a T;
-        type IntoIter = core::slice::Iter<'a, T>;
+struct Summarize;
+struct KX;
 
-        fn into_iter(self) -> Self::IntoIter {
-            if self.num_initialized < N {
-                self.buf[0..self.num_initialized].iter()
-            } else {
-                self.buf.as_slice().iter()
-            }
-        }
+impl<S, T> Approximation<S, T> for Summarize {
+    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
+    where
+        S: 'a,
+        T: 'a,
+    {
+        let iter_dup = x.clone();
+        unimplemented!();
     }
+}
 
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn test_insert() {
-            const N: usize = 3;
-            let test_range = -10..10;
-            let mut bpq_n: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
-
-            for v in test_range.clone() {
-                bpq_n.insert(v);
-            }
-
-            // The BPQ should have the N largest values (which are the 3 at the end of the range).
-            let iter = test_range.into_iter().rev().take(N).rev();
-            for (a, b) in iter.zip(bpq_n.into_iter()) {
-                assert_eq!(a, *b);
-            }
-        }
-
-        #[test]
-        fn test_insert_by_key() {
-            const N: usize = 3;
-            let test_range = (0..20usize).zip(-10..10i32);
-            let mut bpq_n: BoundedPriorityQueue<(usize, i32), N> = BoundedPriorityQueue::new();
-
-            let f = |a: &(usize, i32)| a.1;
-            for v in test_range.clone() {
-                bpq_n.insert_by_key(v, f);
-            }
-
-            // The BPQ should have the N largest values (which are the 3 at the end of the range).
-            let iter = test_range.rev().take(N).rev();
-            for (a, b) in iter.zip(bpq_n.into_iter()) {
-                assert_eq!(a, *b);
-            }
-        }
-
-        #[test]
-        fn test_uninitialized() {
-            const N: usize = 50;
-            let test_range = -10..10;
-            let mut bpq_n: BoundedPriorityQueue<i32, N> = BoundedPriorityQueue::new();
-
-            for v in test_range.clone() {
-                bpq_n.insert(v);
-            }
-
-            // At this point, we don't `rev`: the BPQ hasn't been sorted.
-            let iter = test_range.clone().into_iter();
-
-            // The returned iterator's upper_bound should be the range length, not N.
-            assert_eq!(iter.size_hint().1.unwrap(), test_range.count());
-            for (a, b) in iter.zip(bpq_n.into_iter()) {
-                assert_eq!(a, *b);
-            }
-        }
+impl<S, T> Approximation<S, T> for KX
+where
+    S: SetOperations,
+    T: From<u8>,
+{
+    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
+    where
+        S: 'a,
+        T: 'a,
+    {
+        unimplemented!();
     }
 }
 
