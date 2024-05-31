@@ -5,8 +5,9 @@
 //! difficult to do this in parallel because of potential arr irregularity.
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
-
 use crate::set::SetOperations;
+use core::iter::Sum;
+use core::ops::DivAssign;
 
 /// An Approximation scheme that reduces the number of elements within a BBA.
 pub trait Approximation<S, T> {
@@ -79,6 +80,7 @@ mod bpq {
             }
         }
 
+        /// Return the underlying buffer.
         pub fn consume(self) -> [Option<T>; N] {
             self.buf
         }
@@ -134,17 +136,18 @@ struct KX;
 
 impl<S, T> Approximation<S, T> for Summarize
 where
-    T: PartialOrd,
+    T: PartialOrd + Copy,
 {
     fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
     where
         S: 'a + Clone,
         T: 'a + Clone,
     {
-        //let _iter_dup = x.clone();
-
-        //let mut bpq = bpq::BoundedPriorityQueue::<(S, T), N>::default();
-        //let key_fn = |x: &'a (S, T)| -> &'a T { &x.1 };
+        let iter_dup = x.clone();
+        let mut bpq = bpq::BoundedPriorityQueue::<&'a (S, T), N>::default();
+        for elem in x.into_iter() {
+            bpq.insert_by_key(elem, |z: &&(S, T)| -> T { z.1 });
+        }
 
         //for elem in x.into_iter().cloned() {
         //    bpq.insert_by_key(elem, key_fn);
@@ -156,15 +159,35 @@ where
 
 impl<S, T> Approximation<S, T> for KX
 where
-    S: SetOperations,
-    T: From<u8>,
+    S: SetOperations + Copy,
+    T: PartialOrd + Copy + Sum + From<u8> + DivAssign,
 {
+    // TODO: Refactor this.
     fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
     where
         S: 'a,
         T: 'a,
     {
-        unimplemented!();
+        // TODO: This is ripped from `comb`, should likely be refactored.
+        fn build_arr<S: SetOperations, T: From<u8>, const Z: usize>() -> [(S, T); Z] {
+            core::array::from_fn(|_| (S::empty(), 0u8.into()))
+        }
+
+        let mut bpq = bpq::BoundedPriorityQueue::<&'a (S, T), N>::default();
+        for elem in x.into_iter() {
+            bpq.insert_by_key(elem, |z: &&(S, T)| -> T { z.1 });
+        }
+
+        let buf = bpq.consume();
+        let bot: T = buf.iter().flatten().map(|e| e.1).sum();
+
+        let mut out = build_arr::<S, T, N>();
+        for (mem, elem) in out.iter_mut().zip(buf.iter().flatten()) {
+            *mem = **elem;
+            mem.1 /= bot;
+        }
+
+        out
     }
 }
 
@@ -199,53 +222,5 @@ where
     }
 
     todo!("Create the summary.");
-}
-
-/// Perform 'kx' resulting in 'N' entries within the BBA.
-pub fn kx<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
-where
-    S: Copy + crate::set::SetOperations,
-    T: Ord + Copy + From<usize> + core::iter::Sum + core::ops::Div<T, Output = T>, // TODO: Ord vs PartialOrd?
-{
-    let mut kx: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
-
-    // Catch the degenerate case where |bba| < `N`.
-    if bba.len() < N {
-        for (i, x) in bba.iter().enumerate() {
-            let mem = kx.get_mut(i).unwrap();
-            *mem = *x;
-        }
-
-        for mem in kx.iter_mut().skip(bba.len()) {
-            *mem = (S::empty(), 0.into());
-        }
-    } else {
-        // Otherwise, find the N largest values in the bba.
-        let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
-
-        // TODO: So there's some tradeoffs here: if we store the `usize`, the underlying BPQ will be
-        // smaller, but we'll need to do another loop to copy N values. On the other hand, if we
-        // push `S` we can avoid this final loop, popping them off into the arr.
-        let f = |(_, m): &(usize, T)| *m;
-        for x in bba.iter().enumerate().map(|(i, (_, m))| (i, *m)) {
-            bpq.insert_by_key(x, f);
-        }
-
-        // Write the values to kx.
-        for (i, (j, _)) in bpq.into_iter().enumerate() {
-            let mem = kx.get_mut(i).unwrap();
-            *mem = *bba.get(*j).unwrap();
-        }
-
-        let total: T = kx.iter().map(|(_, m)| *m).sum();
-
-        // Normalize.
-        for mem in kx.iter_mut() {
-            let (s, m) = *mem;
-            *mem = (s, m / total);
-        }
-    }
-
-    kx
 }
 */
