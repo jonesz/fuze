@@ -13,8 +13,8 @@ pub trait Approximation<S, T> {
     /// Compute an approximation for the passed BBA.
     fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
     where
-        S: 'a,
-        T: 'a;
+        S: 'a + Clone,
+        T: 'a + Clone;
 }
 
 /// BPQ structures that are useful for keeping track of the `k` largest elements.
@@ -44,15 +44,17 @@ mod bpq {
         {
             if self.initialized < N {
                 // If the structure hasn't been fully initialized, find the first `None` slot and insert `x`.
-                self.buf.iter_mut().find(|opt| opt.is_none()).expect(
+                let mem = self.buf.iter_mut().find(|opt| opt.is_none()).expect(
                     "Should have found a slot as the structure says it's not fully initialized.",
-                ).insert(x);
+                );
+                *mem = Some(x);
                 self.initialized += 1;
             } else {
                 const ERROR_NONE: &str = "Buffer is supposed to be fully initialized/`Some(z)`.";
                 // Find the smallest value and replace it; utilize `reduce` to avoid needing more than a
                 // `PartialOrd` bound.
-                self.buf
+                *self
+                    .buf
                     .iter_mut()
                     .reduce(|acc, e| {
                         if f(acc.as_ref().expect(ERROR_NONE)) <= f(e.as_ref().expect(ERROR_NONE)) {
@@ -61,8 +63,9 @@ mod bpq {
                             e
                         }
                     })
-                    .unwrap()
-                    .insert(x);
+                    .unwrap() = Some(x);
+                // TODO: This is wrong -- if the number is smaller than the smallest value, it
+                // shouldn't make it into the PQ.
             }
         }
 
@@ -75,13 +78,24 @@ mod bpq {
 struct Summarize;
 struct KX;
 
-impl<S, T> Approximation<S, T> for Summarize {
+impl<S, T> Approximation<S, T> for Summarize
+where
+    T: PartialOrd,
+{
     fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
     where
-        S: 'a,
-        T: 'a,
+        S: 'a + Clone,
+        T: 'a + Clone,
     {
-        let iter_dup = x.clone();
+        //let _iter_dup = x.clone();
+
+        //let mut bpq = bpq::BoundedPriorityQueue::<(S, T), N>::default();
+        //let key_fn = |x: &'a (S, T)| -> &'a T { &x.1 };
+
+        //for elem in x.into_iter().cloned() {
+        //    bpq.insert_by_key(elem, key_fn);
+        //}
+
         unimplemented!();
     }
 }
@@ -100,6 +114,7 @@ where
     }
 }
 
+/*
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
@@ -179,3 +194,4 @@ where
 
     kx
 }
+*/
