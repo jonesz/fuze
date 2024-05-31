@@ -51,21 +51,30 @@ mod bpq {
                 self.initialized += 1;
             } else {
                 const ERROR_NONE: &str = "Buffer is supposed to be fully initialized/`Some(z)`.";
-                // Find the smallest value and replace it; utilize `reduce` to avoid needing more than a
-                // `PartialOrd` bound.
-                *self
+                // Find the smallest value and replace it if the value to be inserted is larger.
+                // utilize `reduce` to avoid needing more than a `PartialOrd` bound (f32).
+                let idx = self
                     .buf
-                    .iter_mut()
-                    .reduce(|acc, e| {
-                        if f(acc.as_ref().expect(ERROR_NONE)) <= f(e.as_ref().expect(ERROR_NONE)) {
-                            acc
-                        } else {
-                            e
-                        }
-                    })
-                    .unwrap() = Some(x);
-                // TODO: This is wrong -- if the number is smaller than the smallest value, it
-                // shouldn't make it into the PQ.
+                    .iter()
+                    .map(|opt| f(opt.as_ref().expect(ERROR_NONE))) // Compute `R: PartialOrd` for each &T.
+                    .enumerate() // `(idx: usize, cmp: R)`
+                    .reduce(|acc, e| if acc.1 <= e.1 { acc } else { e })
+                    .expect(ERROR_NONE)
+                    .0;
+
+                // TODO: The above iteration and the below feel terrible.
+                let mem = self
+                    .buf
+                    .get_mut(idx)
+                    .expect("The returned idx should have been within `N`")
+                    .as_mut()
+                    .expect(
+                        "The buffer should have been initialized -- this should have been Some(v)",
+                    );
+
+                if f(mem) < f(&x) {
+                    *mem = x;
+                }
             }
         }
 
