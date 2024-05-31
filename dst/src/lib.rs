@@ -4,7 +4,4 @@
 pub mod approx;
 pub mod comb;
 pub mod dst;
-mod product;
 pub mod set;
-
-mod hash;
