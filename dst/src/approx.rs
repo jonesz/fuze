@@ -132,7 +132,7 @@ mod bpq {
 }
 
 struct Summarize;
-struct KX;
+pub struct KX;
 
 impl<S, T> Approximation<S, T> for Summarize
 where

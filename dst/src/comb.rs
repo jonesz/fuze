@@ -135,50 +135,30 @@ where
         // (&[(S, f32)] -> [(S, f32); N]); these have to be placed on the stack...
         // Below function is effectively an unitialized arr (TODO: Maybe we should use `MaybeUninit`?).
         assert!(N2 == N * N);
-        fn build_arr<S: SetOperations, const Z: usize>() -> [(S, f32); Z] {
-            core::array::from_fn(|_| (S::empty(), 0.0f32))
-        }
 
         bba.into_iter()
             .map(|e| A::approx(e)) // Compute the initial approximations.
-            .fold(build_arr::<S, N>(), |acc, e: [(S, f32); N]| {
+            .reduce(|acc, e: [(S, f32); N]| {
                 let mut store = store::LinearStore::<N2, S, f32>::default();
+                let mut k = 0.0f32; // Running conflict when B \cap C is empty.
+
                 for (acc_i, e_i) in acc.iter().flat_map(|x1| e.iter().map(move |x2| (x1, x2))) {
-                    // B \cap C = m1(B) * m2(C)
-                    store.insert(acc_i.0.intersection(&e_i.0), acc_i.1 * e_i.1);
+                    // B \cap C = m1(B) * m2(C) where B \cap C != \empty.
+                    let a_cap_e = acc_i.0.intersection(&e_i.0);
+                    if a_cap_e.is_empty() {
+                        k += acc_i.1 * e_i.1;
+                    } else {
+                        store.insert(a_cap_e, acc_i.1 * e_i.1);
+                    }
                 }
 
-                // Compute the conflict \frac{1}{1-K} and then scale the arr..
-                let conflict = 1f32 / (1f32 - store.get(&S::empty()).unwrap_or(&0.0f32));
+                // Compute the conflict \frac{1}{1-K} and then scale the arr.
+                let conflict = 1f32 / (1f32 - k);
                 store.scale(conflict);
 
                 // Compute the approximation.
                 A::approx(store.buf().iter().flatten())
             })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_comb_dempster_q() {
-        // https://en.wikipedia.org/wiki/Dempster%E2%80%93Shafer_theory#Example_producing_correct_results_in_case_of_high_conflict
-        const FILM_X: usize = 0b001;
-        const FILM_Y: usize = 0b010;
-        const FILM_Z: usize = 0b100;
-
-        const FILMS_HIGH_CONFLICT: [&[(usize, f32)]; 2] = [
-            &[(FILM_X, 0.99f32), (FILM_Y, 0.01f32)],
-            &[(FILM_Z, 0.99f32), (FILM_Y, 0.01f32)],
-        ];
-
-        // TODO: Determine what this epsilon should be.
-        let eps = 0.001f32;
-
-        // assert!((comb_dempster_q(FILMS_HIGH_CONFLICT, FILM_Y) - 1.0f32).abs() < eps);
-        // assert!(comb_dempster_q(FILMS_HIGH_CONFLICT, FILM_X) < eps);
-        // assert!(comb_dempster_q(FILMS_HIGH_CONFLICT, FILM_Z) < eps);
+            .expect("Zero-length iterator passed in?")
     }
 }
