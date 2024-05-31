@@ -57,7 +57,7 @@ mod bpq {
                 let idx = self
                     .buf
                     .iter()
-                    .map(|opt| f(opt.as_ref().expect(ERROR_NONE))) // Compute `R: PartialOrd` for each &T.
+                    .map(|opt| f(opt.as_ref().expect(ERROR_NONE))) // Compute `R: PartialOrd` for each `&T`.
                     .enumerate() // `(idx: usize, cmp: R)`
                     .reduce(|acc, e| if acc.1 <= e.1 { acc } else { e })
                     .expect(ERROR_NONE)
@@ -87,7 +87,45 @@ mod bpq {
     #[cfg(test)]
     mod tests {
         use super::*;
-        // TODO: Test the BPQ.
+        const N: usize = 8;
+
+        // BPQ requires a key fn; for usize, just dereference.
+        fn key_fn_usize(x: &usize) -> usize {
+            *x
+        }
+
+        fn default_bpq() -> BoundedPriorityQueue<usize, N> {
+            let mut bpq = BoundedPriorityQueue::default();
+            for i in 0..8 {
+                bpq.insert_by_key(i, key_fn_usize);
+            }
+
+            bpq
+        }
+
+        #[test]
+        fn test_insert() {
+            const TEST_SET: &[usize] = &[10usize, 3, 34, 500, 66];
+            let mut bpq = default_bpq();
+
+            for i in TEST_SET.into_iter().copied() {
+                bpq.insert_by_key(i, key_fn_usize);
+            }
+
+            // Of those inserted: 10, 34, 500, 66 should exist within it.
+            let buf: [Option<usize>; N] = bpq.consume();
+
+            assert!(buf.contains(&Some(10usize)));
+            assert!(buf.contains(&Some(34usize)));
+            assert!(buf.contains(&Some(66usize)));
+            assert!(buf.contains(&Some(500usize)));
+
+            // 3 shouldn't exist in the buf, but 4-7 from the default BPQ should.
+            assert!(!buf.contains(&Some(3usize)));
+            for i in 4..7 {
+                assert!(buf.contains(&Some(i)));
+            }
+        }
     }
 }
 
