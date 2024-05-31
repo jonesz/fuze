@@ -43,7 +43,7 @@ mod store {
             if let Some((_, m)) = mem {
                 *m += v;
             } else {
-                mem.insert((k, v));
+                *mem = Some((k, v));
             }
         }
 
