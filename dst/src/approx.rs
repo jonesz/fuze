@@ -43,6 +43,7 @@ mod bpq {
             R: PartialOrd,
         {
             if self.initialized < N {
+                // TODO: Technically, we know where the `None` is: it's at `self.initialized`.
                 // If the structure hasn't been fully initialized, find the first `None` slot and insert `x`.
                 let mem = self.buf.iter_mut().find(|opt| opt.is_none()).expect(
                     "Should have found a slot as the structure says it's not fully initialized.",
@@ -81,6 +82,12 @@ mod bpq {
         pub fn consume(self) -> [Option<T>; N] {
             self.buf
         }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        // TODO: Test the BPQ.
     }
 }
 
