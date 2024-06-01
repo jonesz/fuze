@@ -1,8 +1,7 @@
 //! Core DST operations: `bel` and `pl` corresponding to the
 //! calculation of belief and plausabilty respectivey.
 use crate::set::SetOperations;
-use core::iter::Sum;
-use core::ops::Sub;
+use core::{iter::Sum, ops::Sub};
 
 /// Compute the belief of `Q` given a BBA.
 pub fn bel<'a, S, T>(bba: impl IntoIterator<Item = &'a (S, T)>, q: &S) -> T
@@ -10,9 +9,8 @@ where
     S: SetOperations + 'a,
     T: Sum<&'a T> + 'a,
 {
-    bba.into_iter()
-        .filter(|(p, _)| p.is_subset(q))
-        .map(|(_, mass)| mass)
+    bba.into_iter() // \sum_{P \subset_eq Q} m(P)
+        .filter_map(|(p, m)| if p.is_subset(q) { Some(m) } else { None })
         .sum()
 }
 
@@ -20,7 +18,7 @@ where
 pub fn pl<'a, S, T>(bba: impl IntoIterator<Item = &'a (S, T)>, q: &S) -> T
 where
     S: SetOperations + 'a,
-    T: Sum<&'a T> + 'a + Sub<Output = T> + From<u8>,
+    T: Sum<&'a T> + From<u8> + Sub<Output = T> + 'a,
 {
     T::from(1u8) - bel(bba, &q.not())
 }
