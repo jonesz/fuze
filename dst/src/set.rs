@@ -53,13 +53,13 @@ mod interval {
             Self { buf }
         }
 
-        fn is_subset(&self, rhs: &Self) -> bool
+        fn is_subset(lhs: &Self, rhs: &Self) -> bool
         where
             T: PartialOrd,
         {
             // ex: `[-1, 5] \subset [-2, 6]`
             let f = |l: &(T, T), r: &(T, T)| -> bool { l.0 >= r.0 && l.1 <= r.1 };
-            self.buf.iter().zip(rhs.buf.iter()).all(|(l, r)| {
+            lhs.buf.iter().zip(rhs.buf.iter()).all(|(l, r)| {
                 (l.is_none() && r.is_none()) // Either the dimensions are both `None`...
                     || l.as_ref()
                         .zip(r.as_ref()) // Or they're both `Some` with the subset condition holding.
@@ -78,7 +78,7 @@ mod interval {
             Self { buf: x }
         }
 
-        fn cap(&self, rhs: &Self) -> Self
+        fn cap(lhs: &Self, rhs: &Self) -> Self
         where
             T: Ord + Copy,
         {
@@ -87,10 +87,10 @@ mod interval {
                     .map(|(l, r)| (T::max(l.0, r.0), T::min(l.1, r.1)))
             };
 
-            Self::binop(self, rhs, f)
+            Self::binop(lhs, rhs, f)
         }
 
-        fn cup(&self, rhs: &Self) -> Self
+        fn cup(lhs: &Self, rhs: &Self) -> Self
         where
             T: Ord + Copy,
         {
@@ -103,7 +103,7 @@ mod interval {
                 }
             };
 
-            Self::binop(self, rhs, f)
+            Self::binop(lhs, rhs, f)
         }
     }
 
