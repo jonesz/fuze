@@ -83,8 +83,15 @@ mod interval {
             T: Ord + Copy,
         {
             let f = |l: Option<&(T, T)>, r: Option<&(T, T)>| -> Option<(T, T)> {
-                l.zip(r) // `zip` is effectively an AND, then we have the following condition.
-                    .map(|(l, r)| (T::max(l.0, r.0), T::min(l.1, r.1)))
+                l.zip(r) // `zip` is effectively an AND...
+                    .and_then(|(l, r)| {
+                        // And we have a condition that guarantees overlap between intervals.
+                        if (l.1 >= r.0) || (r.1 >= l.0) {
+                            Some((T::max(l.0, r.0), T::min(l.1, r.1)))
+                        } else {
+                            None
+                        }
+                    })
             };
 
             Self::binop(lhs, rhs, f)
@@ -112,7 +119,9 @@ mod interval {
         use super::*;
 
         #[test]
-        fn test_interval() {}
+        fn test_interval() {
+            todo!();
+        }
     }
 }
 
