@@ -10,6 +10,24 @@ pub trait Set: PartialEq {
     fn not(&self) -> Self;
 }
 
+impl Set for usize {
+    fn is_subset(&self, rhs: &Self) -> bool {
+        self & rhs == *self
+    }
+
+    fn cap(lhs: &Self, rhs: &Self) -> Self {
+        lhs & rhs
+    }
+
+    fn cup(lhs: &Self, rhs: &Self) -> Self {
+        lhs | rhs
+    }
+
+    fn not(&self) -> Self {
+        !self
+    }
+}
+
 mod interval {
     use super::Set;
     use core::cmp::Ord;
