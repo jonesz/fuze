@@ -1,6 +1,6 @@
 //! Combination rules for Dempster-Shafer Theory.
 use crate::approx::Approximation;
-use crate::set::SetOperations;
+use crate::set::Set;
 use core::marker::PhantomData;
 
 mod store {
@@ -25,7 +25,7 @@ mod store {
 
     impl<const N: usize, K, V> LinearStore<N, K, V>
     where
-        K: Eq,
+        K: PartialEq,
         V: MulAssign + AddAssign + Copy,
     {
         /// Insert a key-value pair into the store.
@@ -104,7 +104,7 @@ mod store {
     }
 }
 
-pub trait CombRule<S: SetOperations, T> {
+pub trait CombRule<S: Set, T> {
     // TODO: We need 'const generic exprs' in stable to avoid the N2 constraint...
     /// Combine a set of BBAs where we initially compute an approximation, and then after each combination
     /// `m1 comb m2` we compute an approximation.
@@ -121,7 +121,7 @@ pub struct Dempster<S, T>(PhantomData<S>, PhantomData<T>);
 
 impl<S> CombRule<S, f32> for Dempster<S, f32>
 where
-    S: SetOperations + Copy, // TODO: Get rid of the `Copy`.
+    S: Set + Copy, // TODO: Get rid of the `Copy`.
 {
     fn comb<'a, const N: usize, const N2: usize, A>(
         bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, f32)> + Clone>,
@@ -144,8 +144,8 @@ where
 
                 for (acc_i, e_i) in acc.iter().flat_map(|x1| e.iter().map(move |x2| (x1, x2))) {
                     // B \cap C = m1(B) * m2(C) where B \cap C != \empty.
-                    let a_cap_e = acc_i.0.intersection(&e_i.0);
-                    if a_cap_e.is_empty() {
+                    let a_cap_e = S::cap(&acc_i.0, &e_i.0);
+                    if a_cap_e == S::EMPTY {
                         k += acc_i.1 * e_i.1;
                     } else {
                         store.insert(a_cap_e, acc_i.1 * e_i.1);

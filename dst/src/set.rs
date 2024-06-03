@@ -8,6 +8,8 @@ pub trait Set: PartialEq {
     fn cup(lhs: &Self, rhs: &Self) -> Self;
     /// Compute the NOT of some Set.
     fn not(&self) -> Self;
+
+    const EMPTY: Self;
 }
 
 impl Set for usize {
@@ -26,6 +28,8 @@ impl Set for usize {
     fn not(&self) -> Self {
         !self
     }
+
+    const EMPTY: Self = 0usize;
 }
 
 mod interval {
@@ -126,6 +130,8 @@ mod interval {
             // results?
             unimplemented!();
         }
+
+        const EMPTY: Self = Self { buf: [None; N] };
     }
 
     #[cfg(test)]

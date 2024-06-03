@@ -5,7 +5,7 @@
 //! difficult to do this in parallel because of potential arr irregularity.
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
-use crate::set::SetOperations;
+use crate::set::Set;
 use core::iter::Sum;
 use core::ops::DivAssign;
 
@@ -159,7 +159,7 @@ where
 
 impl<S, T> Approximation<S, T> for KX
 where
-    S: SetOperations + Copy,
+    S: Set + Copy,
     T: PartialOrd + Copy + Sum + From<u8> + DivAssign,
 {
     // TODO: Refactor this.
@@ -169,8 +169,8 @@ where
         T: 'a,
     {
         // TODO: This is ripped from `comb`, should likely be refactored.
-        fn build_arr<S: SetOperations, T: From<u8>, const Z: usize>() -> [(S, T); Z] {
-            core::array::from_fn(|_| (S::empty(), 0u8.into()))
+        fn build_arr<S: Set, T: From<u8>, const Z: usize>() -> [(S, T); Z] {
+            core::array::from_fn(|_| (S::EMPTY, 0u8.into()))
         }
 
         let mut bpq = bpq::BoundedPriorityQueue::<&'a (S, T), N>::default();
@@ -195,7 +195,7 @@ where
 /// Perform `summarize` resulting in `N` entires within the BBA.
 pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
 where
-    S: Copy + crate::set::SetOperations,
+    S: Copy + crate::set::Set,
     T: Ord + Copy + From<usize> + core::iter::Sum + core::ops::Div<T, Output = T>, // TODO: Ord vs PartialOrd?
 {
     let mut summarize: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
