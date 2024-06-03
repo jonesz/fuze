@@ -97,7 +97,7 @@ mod interval {
                 l.zip(r) // `zip` is effectively an AND...
                     .and_then(|(l, r)| {
                         // And we have a condition that guarantees overlap between intervals.
-                        if (l.1 >= r.0) || (r.1 >= l.0) {
+                        if (l.1 >= r.0) && (r.1 >= l.0) {
                             Some((T::max(l.0, r.0), T::min(l.1, r.1)))
                         } else {
                             None
@@ -112,6 +112,8 @@ mod interval {
         where
             T: Ord + Copy,
         {
+            // TODO: Consider the case where there's two disjoint intervals --
+            // we can't represent their union!
             let f = |l: Option<&(T, T)>, r: Option<&(T, T)>| -> Option<(T, T)> {
                 match (l, r) {
                     (None, None) => None,
@@ -139,8 +141,48 @@ mod interval {
         use super::*;
 
         #[test]
-        fn test_interval() {
-            todo!();
+        fn test_interval_is_subset() {
+            let i_a = Interval::<1, i32>::build([Some((-5, 5))]);
+            let i_b = Interval::<1, i32>::build([Some((-6, 6))]);
+
+            assert!(i_a.is_subset(&i_b));
+            assert!(!i_b.is_subset(&i_a));
+        }
+
+        #[test]
+        fn test_interval_cup_disjoint() {
+            // TODO: What to do when the interval is disjoint?
+            let _i_a = Interval::<1, i32>::build([Some((5, 10))]);
+            let _i_b = Interval::<1, i32>::build([Some((-10, -5))]);
+            assert!(false);
+        }
+
+        #[test]
+        fn test_interval_cup() {
+            let i_a = Interval::<1, i32>::build([Some((-5, 10))]);
+            let i_b = Interval::<1, i32>::build([Some((-10, -5))]);
+
+            let i_c = Interval::cup(&i_a, &i_b);
+            assert_eq!(i_c.buf.get(0).unwrap().unwrap(), (-10, 10));
+        }
+
+        #[test]
+        fn test_interval_cap() {
+            // TODO: The cases for these need to be tested exhaustively.
+            let i_a = Interval::<1, i32>::build([Some((-5, 10))]);
+            let i_b = Interval::<1, i32>::build([Some((-10, -4))]);
+
+            let i_c = Interval::cap(&i_a, &i_b);
+            assert_eq!(i_c.buf.get(0).unwrap().unwrap(), (-5, -4));
+        }
+
+        #[test]
+        fn test_interval_cap_disjoint() {
+            let i_a = Interval::<1, i32>::build([Some((9, 10))]);
+            let i_b = Interval::<1, i32>::build([Some((-99, -5))]);
+
+            let i_c = Interval::cap(&i_a, &i_b);
+            assert!(i_c.buf.get(0).unwrap().is_none());
         }
     }
 }
