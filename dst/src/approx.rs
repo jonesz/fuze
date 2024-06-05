@@ -131,31 +131,7 @@ mod bpq {
     }
 }
 
-struct Summarize;
 pub struct KX;
-
-impl<S, T> Approximation<S, T> for Summarize
-where
-    T: PartialOrd + Copy,
-{
-    fn approx<'a, const N: usize, I: IntoIterator<Item = &'a (S, T)> + Clone>(x: I) -> [(S, T); N]
-    where
-        S: 'a + Clone,
-        T: 'a + Clone,
-    {
-        let iter_dup = x.clone();
-        let mut bpq = bpq::BoundedPriorityQueue::<&'a (S, T), N>::default();
-        for elem in x.into_iter() {
-            bpq.insert_by_key(elem, |z: &&(S, T)| -> T { z.1 });
-        }
-
-        //for elem in x.into_iter().cloned() {
-        //    bpq.insert_by_key(elem, key_fn);
-        //}
-
-        unimplemented!();
-    }
-}
 
 impl<S, T> Approximation<S, T> for KX
 where
@@ -190,37 +166,3 @@ where
         out
     }
 }
-
-/*
-/// Perform `summarize` resulting in `N` entires within the BBA.
-pub fn summarize<const N: usize, S, T>(bba: &[(S, T)]) -> [(S, T); N]
-where
-    S: Copy + crate::set::Set,
-    T: Ord + Copy + From<usize> + core::iter::Sum + core::ops::Div<T, Output = T>, // TODO: Ord vs PartialOrd?
-{
-    let mut summarize: [(S, T); N] = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
-
-    // Check for the degenerate case where we have less than N elements.
-    if bba.len() <= N {
-        for (i, x) in bba.iter().enumerate() {
-            let mem = summarize.get_mut(i).unwrap();
-            *mem = *x;
-        }
-
-        for mem in summarize.iter_mut().skip(bba.len()) {
-            *mem = (S::empty(), 0.into());
-        }
-    };
-
-    let mut bpq: bpq::BoundedPriorityQueue<(usize, T), N> = bpq::BoundedPriorityQueue::new();
-
-    let bba_idx = bba.iter().enumerate().map(|(i, (_, m))| (i, *m));
-    let f = |(_, m): &(usize, T)| *m;
-
-    for x in bba_idx {
-        bpq.insert_by_key(x, f);
-    }
-
-    todo!("Create the summary.");
-}
-*/
