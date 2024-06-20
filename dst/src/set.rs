@@ -33,6 +33,36 @@ impl Set for usize {
     const EMPTY: Self = 0usize;
 }
 
+impl<const N: usize> Set for [u8; N] {
+    fn is_subset(&self, rhs: &Self) -> bool {
+        self.iter().zip(rhs).all(|(l, r)| l & r == *l)
+    }
+
+    fn cap(lhs: &Self, rhs: &Self) -> Self {
+        let mut buf = Self::EMPTY;
+        buf.iter_mut()
+            .zip(lhs.iter().zip(rhs))
+            .for_each(|(x, (l, r))| *x = l & r);
+        buf
+    }
+
+    fn cup(lhs: &Self, rhs: &Self) -> Self {
+        let mut buf = Self::EMPTY;
+        buf.iter_mut()
+            .zip(lhs.iter().zip(rhs))
+            .for_each(|(x, (l, r))| *x = l | r);
+        buf
+    }
+
+    fn not(&self) -> Self {
+        let mut buf = Self::EMPTY;
+        buf.iter_mut().zip(self).for_each(|(i, x)| *i = !x);
+        buf
+    }
+
+    const EMPTY: Self = [0u8; N];
+}
+
 mod interval {
     use super::Set;
     use core::cmp::Ord;
