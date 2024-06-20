@@ -100,11 +100,11 @@ mod interval {
         T: PartialEq,
     {
         fn eq(&self, rhs: &Self) -> bool {
-            // TODO: Bug -- if they're both `None` it should work.
             self.buf.iter().zip(rhs.buf.iter()).all(|(l, r)| {
-                l.as_ref()
-                    .zip(r.as_ref())
-                    .is_some_and(|(l_i, r_i)| l_i.0 == r_i.0 && l_i.1 == r_i.1)
+                (l.is_none() && r.is_none()) // Either the dimensions are both `None`...
+                    || l.as_ref()
+                        .zip(r.as_ref()) // Or they're both `Some` with the equivalence condition holding.
+                        .is_some_and(|(l_i, r_i)| l_i.0 == r_i.0 && l_i.1 == r_i.1)
             })
         }
     }
