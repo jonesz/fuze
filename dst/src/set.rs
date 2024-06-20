@@ -100,6 +100,7 @@ mod interval {
         T: PartialEq,
     {
         fn eq(&self, rhs: &Self) -> bool {
+            // TODO: Bug -- if they're both `None` it should work.
             self.buf.iter().zip(rhs.buf.iter()).all(|(l, r)| {
                 l.as_ref()
                     .zip(r.as_ref())
@@ -170,50 +171,88 @@ mod interval {
     #[cfg(test)]
     mod tests {
         use super::*;
+        const VALUES: [((i32, i32), (i32, i32)); 4] = [
+            ((0, 10), (1, 11)),  // A.0 < B.0 && A.1 < B.1
+            ((0, 10), (-1, 11)), // A.0 > B.0 && A.1 < B.1
+            ((0, 10), (1, 9)),   // A.0 < B.0 && A.1 > B.1
+            ((0, 10), (-1, 9)),  // A.0 > B.0 && A.1 > B.1
+        ];
 
         #[test]
-        fn test_interval_is_subset() {
-            let i_a = Interval::<1, i32>::build([Some((-5, 5))]);
-            let i_b = Interval::<1, i32>::build([Some((-6, 6))]);
-
-            assert!(i_a.is_subset(&i_b));
-            assert!(!i_b.is_subset(&i_a));
+        fn test_interval_is_subset_regular() {
+            const EXPECTED: [bool; VALUES.len()] = [false, true, false, false];
+            for ((elem_a, elem_b), result) in VALUES.into_iter().zip(EXPECTED) {
+                let a = Interval::build([Some(elem_a)]);
+                let b = Interval::build([Some(elem_b)]);
+                assert_eq!(a.is_subset(&b), result);
+            }
         }
 
         #[test]
-        fn test_interval_cup_disjoint() {
-            // TODO: What to do when the interval is disjoint?
-            let _i_a = Interval::<1, i32>::build([Some((5, 10))]);
-            let _i_b = Interval::<1, i32>::build([Some((-10, -5))]);
-            assert!(false);
+        fn test_interval_is_subset_irregular() {
+            let b = Interval::build([Some((0, 10))]);
+
+            assert!(Interval::<1, i32>::EMPTY.is_subset(&Interval::EMPTY)); // None \subset None :thumbs_up:.
+            assert!(!Interval::EMPTY.is_subset(&b)); // !(None \subset Some) :thumbs_up:.
+            assert!(!b.is_subset(&Interval::EMPTY)); // !(Some \subset None) :thumbs_up:.
         }
 
         #[test]
         fn test_interval_cup() {
-            let i_a = Interval::<1, i32>::build([Some((-5, 10))]);
-            let i_b = Interval::<1, i32>::build([Some((-10, -5))]);
+            const EXPECTED: [(i32, i32); VALUES.len()] = [(0, 11), (-1, 11), (0, 10), (-1, 10)];
+            for ((elem_a, elem_b), result) in VALUES.into_iter().zip(EXPECTED) {
+                let a = Interval::build([Some(elem_a)]);
+                let b = Interval::build([Some(elem_b)]);
+                let c = Interval::build([Some(result)]);
+                assert_eq!(Interval::cup(&a, &b), c);
+            }
+        }
 
-            let i_c = Interval::cup(&i_a, &i_b);
-            assert_eq!(i_c.buf.get(0).unwrap().unwrap(), (-10, 10));
+        #[test]
+        fn test_interval_cup_disjoint() {
+            let a = Interval::build([Some((0, 10))]);
+            let b = Interval::build([Some((11, 20))]);
+            let c = Interval::cup(&a, &b); // A \cup B = (0, 10) U (11, 20).
+            assert_eq!(c, todo!());
+        }
+
+        #[test]
+        fn test_interval_cup_irregular() {
+            let b = Interval::build([Some((0, 10))]);
+            assert_eq!(Interval::cup(&Interval::EMPTY, &b), b); // EMPTY \cup B = B.
+            assert_eq!(
+                Interval::<1, i32>::cup(&Interval::EMPTY, &Interval::EMPTY),
+                Interval::EMPTY
+            ); // EMPTY \cup EMPTY = EMPTY.
         }
 
         #[test]
         fn test_interval_cap() {
-            // TODO: The cases for these need to be tested exhaustively.
-            let i_a = Interval::<1, i32>::build([Some((-5, 10))]);
-            let i_b = Interval::<1, i32>::build([Some((-10, -4))]);
-
-            let i_c = Interval::cap(&i_a, &i_b);
-            assert_eq!(i_c.buf.get(0).unwrap().unwrap(), (-5, -4));
+            const EXPECTED: [(i32, i32); VALUES.len()] = [(1, 10), (0, 10), (1, 9), (0, 9)];
+            for ((elem_a, elem_b), result) in VALUES.into_iter().zip(EXPECTED) {
+                let a = Interval::build([Some(elem_a)]);
+                let b = Interval::build([Some(elem_b)]);
+                let c = Interval::build([Some(result)]);
+                assert_eq!(Interval::cap(&a, &b), c);
+            }
         }
 
         #[test]
         fn test_interval_cap_disjoint() {
-            let i_a = Interval::<1, i32>::build([Some((9, 10))]);
-            let i_b = Interval::<1, i32>::build([Some((-99, -5))]);
+            let a = Interval::build([Some((0, 10))]);
+            let b = Interval::build([Some((11, 20))]);
+            assert_eq!(Interval::cap(&a, &b), Interval::EMPTY);
+        }
 
-            let i_c = Interval::cap(&i_a, &i_b);
-            assert!(i_c.buf.get(0).unwrap().is_none());
+        #[test]
+        fn test_interval_cap_irregular() {
+            let b = Interval::build([Some((0, 10))]);
+            assert_eq!(Interval::cup(&Interval::EMPTY, &b), Interval::EMPTY); // EMPTY \cap B = EMPTY.
+        }
+
+        #[test]
+        fn test_interval_not() {
+            todo!();
         }
     }
 }
