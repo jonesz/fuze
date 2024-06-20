@@ -247,7 +247,7 @@ mod interval {
         #[test]
         fn test_interval_cap_irregular() {
             let b = Interval::build([Some((0, 10))]);
-            assert_eq!(Interval::cup(&Interval::EMPTY, &b), Interval::EMPTY); // EMPTY \cap B = EMPTY.
+            assert_eq!(Interval::cap(&Interval::EMPTY, &b), Interval::EMPTY); // EMPTY \cap B = EMPTY.
         }
 
         #[test]
