@@ -1,3 +1,5 @@
+//! Set operations needed for a DST impl.
+
 /// A mathematical Set, but specifically those operations needed for a DST impl.
 pub trait Set: PartialEq {
     /// Compute whether the LHS is a subset of the RHS.
