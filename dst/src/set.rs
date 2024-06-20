@@ -191,7 +191,6 @@ mod interval {
         #[test]
         fn test_interval_is_subset_irregular() {
             let b = Interval::build([Some((0, 10))]);
-
             assert!(Interval::<1, i32>::EMPTY.is_subset(&Interval::EMPTY)); // None \subset None :thumbs_up:.
             assert!(!Interval::EMPTY.is_subset(&b)); // !(None \subset Some) :thumbs_up:.
             assert!(!b.is_subset(&Interval::EMPTY)); // !(Some \subset None) :thumbs_up:.
@@ -255,9 +254,4 @@ mod interval {
             todo!();
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }
