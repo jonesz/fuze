@@ -4,11 +4,12 @@ pub trait Set: PartialEq {
     fn is_subset(&self, rhs: &Self) -> bool;
     /// Compute the intersection between the LHS and RHS.
     fn cap(lhs: &Self, rhs: &Self) -> Self;
-    /// Compute the union betweenthe LHS ad RHS.
+    /// Compute the union between the LHS and RHS.
     fn cup(lhs: &Self, rhs: &Self) -> Self;
     /// Compute the NOT of some Set.
     fn not(&self) -> Self;
 
+    /// A representation of the Empty Set.
     const EMPTY: Self;
 }
 
