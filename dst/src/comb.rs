@@ -105,9 +105,9 @@ mod store {
 }
 
 pub trait CombRule<S: Set, T> {
-    // TODO: We need 'const generic exprs' in stable to avoid the N2 constraint...
-    /// Combine a set of BBAs where we initially compute an approximation, and then after each combination
-    /// `m1 comb m2` we compute an approximation.
+    // TODO: We need 'const generic exprs' in stable to avoid the `N2` constraint...
+    /// Combine a set of BBAs where we initially compute an approximation and then reduce the
+    /// BBAs via combination w/ rule, then approximation.
     fn comb<'a, const N: usize, const N2: usize, A>(
         bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, T)> + Clone>,
     ) -> [(S, T); N]
@@ -133,7 +133,6 @@ where
         // TODO: See the comment within the trait about 'const generic exprs'. There's `N * N`
         // intersections to compute between each subset after we compute the initial approximation
         // (&[(S, f32)] -> [(S, f32); N]); these have to be placed on the stack...
-        // Below function is effectively an unitialized arr (TODO: Maybe we should use `MaybeUninit`?).
         assert!(N2 == N * N);
 
         bba.into_iter()
