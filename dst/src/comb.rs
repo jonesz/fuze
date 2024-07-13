@@ -182,6 +182,10 @@ mod comb_rw {
             a: &[(S, f32); N],
             b: &[(S, f32); N],
         ) -> impl Iterator<Item = (S, f32)> {
+            for (j, k) in a.iter().flat_map(|j| b.iter().map(|k| (j, k))) {
+                let j_cap_k = S::cap(&j.0, &k.0);
+            }
+
             todo!();
         }
     }

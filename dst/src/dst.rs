@@ -23,6 +23,12 @@ where
     T::from(1u8) - bel(bba, &q.not())
 }
 
+pub fn comb_approx<'a, const N: usize, S, T>(
+    bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, T)>>,
+) -> [(S, T); N] {
+    todo!();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

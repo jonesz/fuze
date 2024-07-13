@@ -186,4 +186,12 @@ mod approx_rw {
             todo!();
         }
     }
+
+    struct Summarize();
+
+    impl<S: Set, T> Approximation<S, T> for Summarize {
+        fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N] {
+            todo!();
+        }
+    }
 }
