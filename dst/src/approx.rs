@@ -166,3 +166,24 @@ where
         out
     }
 }
+
+mod approx_rw {
+    use crate::set::Set;
+
+    fn build_arr<T, const Z: usize>() -> [T; Z] {
+        // TODO: Utilize `MaybeUninit`.
+        todo!();
+    }
+
+    trait Approximation<S: Set, T> {
+        fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N];
+    }
+
+    struct KX();
+
+    impl<S: Set, T> Approximation<S, T> for KX {
+        fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N] {
+            todo!();
+        }
+    }
+}
