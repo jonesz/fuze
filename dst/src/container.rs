@@ -87,7 +87,8 @@ impl<const N: usize, T> PriorityQueue<N, T> {
         todo!();
     }
 
-    pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> &R, v: T) -> Option<T> {
+    // TODO: `impl Fn(&T) -> R`: this constrains the API to things that can `Copy`.
+    pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> R, v: T) -> Option<T> {
         // If there's a `None`, attempt to find it and replace it.
         let (idx, r) =
             if let Some((idx, mem)) = self.buf.iter_mut().enumerate().find(|(_, x)| x.is_none()) {
