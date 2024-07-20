@@ -21,10 +21,10 @@ impl<const N: usize, K, V> Default for CGHashMap<N, K, V> {
 impl<const N: usize, K, V> CGHashMap<N, K, V>
 where
     K: PartialEq,
-    V: core::ops::AddAssign,
+    V: core::ops::AddAssign + core::ops::MulAssign + Copy,
 {
     // This 'insert' operation is a summation.
-    fn insert(&mut self, k: K, v: V) {
+    pub fn insert(&mut self, k: K, v: V) {
         let mem = self
             .buf
             .iter_mut()
@@ -38,5 +38,22 @@ where
         } else {
             *mem = Some((k, v));
         }
+    }
+
+    pub fn scale(&mut self, s: V) {
+        self.buf
+            .iter_mut()
+            .flatten()
+            .flatten()
+            // TODO: The `*= s` triggers a `Copy` of `s`; what's the
+            // perf impact? We could utilize a reference, but it makes the
+            // trait bounds uglier.
+            .for_each(|x| x.1 *= s);
+    }
+
+    /// Return an iterator over the underlying buffer.
+    pub fn consume(self) -> impl Iterator<Item = (K, V)> {
+        // [[...; N]; N] -> [...; N * N] alongside dumping all `None` options.
+        self.buf.into_iter().flatten().flatten()
     }
 }
