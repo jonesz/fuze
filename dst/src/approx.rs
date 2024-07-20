@@ -168,12 +168,8 @@ where
 }
 
 mod approx_rw {
+    use crate::container::PriorityQueue;
     use crate::set::Set;
-
-    fn build_arr<T, const Z: usize>() -> [T; Z] {
-        // TODO: Utilize `MaybeUninit`.
-        todo!();
-    }
 
     trait Approximation<S: Set, T> {
         fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N];
@@ -181,16 +177,27 @@ mod approx_rw {
 
     struct KX();
 
-    impl<S: Set, T> Approximation<S, T> for KX {
-        fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N] {
-            todo!();
+    impl<S: Set> Approximation<S, f32> for KX {
+        fn approx<const N: usize>(bba: impl Iterator<Item = (S, f32)>) -> [(S, f32); N] {
+            // Utilize a PQ to capture the N largest elements within the BBA.
+            let mut container = PriorityQueue::<N, (S, f32)>::default();
+            bba.for_each(|x| {
+                container.insert(x);
+            });
+
+            // Push those N elements into the resulting approximation.
+            let mut container_iter = container.consume();
+            let buf = core::array::from_fn(|_| container_iter.next().unwrap_or((S::EMPTY, 0.0f32)));
+
+            // TODO: Rescale the remaining elements.
+            buf
         }
     }
 
     struct Summarize();
 
-    impl<S: Set, T> Approximation<S, T> for Summarize {
-        fn approx<const N: usize>(bba: impl Iterator<Item = (S, T)>) -> [(S, T); N] {
+    impl<S: Set> Approximation<S, f32> for Summarize {
+        fn approx<const N: usize>(bba: impl Iterator<Item = (S, f32)>) -> [(S, f32); N] {
             todo!();
         }
     }

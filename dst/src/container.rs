@@ -14,7 +14,7 @@ impl<const N: usize, K, V> Default for CGHashMap<N, K, V> {
         // just be zeroed (if `None` is just zeroed.)
         let buf: [[Option<(K, V)>; N]; N] =
             core::array::from_fn(|_| core::array::from_fn(|_| None));
-        CGHashMap { buf }
+        Self { buf }
     }
 }
 
@@ -55,5 +55,47 @@ where
     pub fn consume(self) -> impl Iterator<Item = (K, V)> {
         // [[...; N]; N] -> [...; N * N] alongside dumping all `None` options.
         self.buf.into_iter().flatten().flatten()
+    }
+}
+
+pub struct PriorityQueue<const N: usize, T> {
+    buf: [Option<T>; N],
+}
+
+impl<const N: usize, T> Default for PriorityQueue<N, T> {
+    fn default() -> Self {
+        Self {
+            buf: core::array::from_fn(|_| None),
+        }
+    }
+}
+
+impl<const N: usize, T> PriorityQueue<N, T> {
+    /// Compute the children of the passed index with the array representation of a heap.
+    const fn children(x: usize) -> (usize, usize) {
+        (x * 2 + 1, x * 2 + 2)
+    }
+
+    pub fn insert(&mut self, v: T) -> Option<T> {
+        todo!()
+    }
+
+    pub fn consume(self) -> impl Iterator<Item = T> {
+        self.buf.into_iter().flatten()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type PQ = PriorityQueue<16, usize>;
+
+    #[test]
+    fn test_children() {
+        assert_eq!(PQ::children(0), (1, 2));
+        assert_eq!(PQ::children(1), (3, 4));
+        assert_eq!(PQ::children(2), (5, 6));
+        assert_eq!(PQ::children(3), (7, 8));
     }
 }

@@ -3,6 +3,6 @@
 #![warn(missing_docs)]
 pub mod approx;
 pub mod comb;
+mod container;
 pub mod dst;
-mod hashmap;
 pub mod set;

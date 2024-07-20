@@ -163,7 +163,7 @@ where
 }
 
 mod comb_rw {
-    use crate::hashmap::CGHashMap;
+    use crate::container::CGHashMap;
     use crate::set::Set;
 
     trait CombRule<S: Set, T> {
