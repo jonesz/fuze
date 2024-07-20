@@ -71,13 +71,45 @@ impl<const N: usize, T> Default for PriorityQueue<N, T> {
 }
 
 impl<const N: usize, T> PriorityQueue<N, T> {
+    const LEAF_IDX: usize = usize::ilog2(N) as usize;
+
     /// Compute the children of the passed index with the array representation of a heap.
     const fn children(x: usize) -> (usize, usize) {
         (x * 2 + 1, x * 2 + 2)
     }
 
-    pub fn insert(&mut self, v: T) -> Option<T> {
+    /// Compute the parent of a child.
+    const fn parent(x: usize) -> usize {
         todo!()
+    }
+
+    fn heap_upkeep(&mut self, idx: usize) {
+        todo!();
+    }
+
+    pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> &R, v: T) -> Option<T> {
+        // If there's a `None`, attempt to find it and replace it.
+        let (idx, r) =
+            if let Some((idx, mem)) = self.buf.iter_mut().enumerate().find(|(_, x)| x.is_none()) {
+                (idx, mem.replace(v))
+            } else {
+                // Otherwise, find the minimum value then replace it.
+                let (idx, mem) = self.buf[Self::LEAF_IDX..]
+                    .iter_mut()
+                    .enumerate()
+                    .reduce(|(a, min), (b, e)| {
+                        if f(min.as_ref().unwrap()) > f(e.as_ref().unwrap()) {
+                            (b, e)
+                        } else {
+                            (a, min)
+                        }
+                    })
+                    .unwrap();
+                (idx, mem.replace(v))
+            };
+
+        self.heap_upkeep(idx);
+        r
     }
 
     pub fn consume(self) -> impl Iterator<Item = T> {
