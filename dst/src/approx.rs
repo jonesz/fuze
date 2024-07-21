@@ -179,18 +179,22 @@ mod approx_rw {
 
     impl<S: Set> Approximation<S, f32> for KX {
         fn approx<const N: usize>(bba: impl Iterator<Item = (S, f32)>) -> [(S, f32); N] {
-            let f = |x: &(S, f32)| x.1;
-            // Utilize a PQ to capture the N largest elements within the BBA.
+            // Utilize a PH to capture the N largest elements within the BBA.
             let mut container = PriorityHeap::<N, (S, f32)>::default();
             bba.for_each(|x| {
+                let f = |x: &(S, f32)| x.1;
                 container.insert_by_key(f, x);
             });
 
             // Push those N elements into the resulting approximation.
             let mut container_iter = container.consume();
-            let buf = core::array::from_fn(|_| container_iter.next().unwrap_or((S::EMPTY, 0.0f32)));
+            let mut buf =
+                core::array::from_fn(|_| container_iter.next().unwrap_or((S::EMPTY, 0.0f32)));
 
-            // TODO: Rescale the remaining elements.
+            // Rescale so that the resulting BBA sums to `1.0f32`.
+            let denom: f32 = buf.iter().map(|e| e.1).sum();
+            buf.iter_mut().for_each(|mem| mem.1 /= denom);
+
             buf
         }
     }
