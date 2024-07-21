@@ -104,4 +104,36 @@ mod tests {
             }
         }
     }
+
+    mod summarize {
+        use super::super::{Approximation, Summarize};
+
+        #[test]
+        fn test_summarize_full() {
+            let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
+            for elem in Summarize::approx::<3>(input) {
+                assert!(input.contains(&elem));
+            }
+        }
+
+        #[test]
+        fn test_summarize_overflow() {
+            let input = [(1usize, 0.10f32), (2, 0.20f32), (3, 0.30f32), (4, 0.40f32)];
+            let output = [(4usize, 0.40f32), (3, 0.30f32), (1 | 2, 0.10f32 + 0.20f32)];
+
+            for elem in Summarize::approx::<3>(input) {
+                assert!(output.contains(&elem));
+            }
+        }
+
+        #[test]
+        fn test_summarize_incomplete() {
+            let input = [(1usize, 0.50f32), (3, 0.50f32)];
+            let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
+
+            for elem in Summarize::approx::<3>(input) {
+                assert!(output.contains(&elem));
+            }
+        }
+    }
 }
