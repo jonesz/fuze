@@ -87,8 +87,10 @@ pub(super) mod em {
     }
 }
 
+/// Heap-oriented structures.
 pub mod heap {
 
+    /// A Bounded Priority Heap.
     #[derive(Debug)]
     pub struct PriorityHeap<const N: usize, T> {
         buf: [Option<T>; N],
@@ -137,6 +139,7 @@ pub mod heap {
         }
 
         // TODO: `impl Fn(&T) -> R`: this constrains the API to things that can `Copy`.
+        /// Insert a value into the Heap, returning the value that was ejected.
         pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> R, v: T) -> Option<T> {
             // If there's a `None`, attempt to find it and replace it.
             let (idx, r) = if let Some((idx, mem)) =
@@ -164,6 +167,7 @@ pub mod heap {
             r
         }
 
+        /// Return an iterator over the underlying buffer.
         pub fn consume(self) -> impl Iterator<Item = T> {
             self.buf.into_iter().flatten()
         }
