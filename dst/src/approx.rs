@@ -182,7 +182,7 @@ mod approx_rw {
             // Utilize a PQ to capture the N largest elements within the BBA.
             let mut container = PriorityQueue::<N, (S, f32)>::default();
             bba.for_each(|x| {
-                container.insert(x);
+                // container.insert(x);
             });
 
             // Push those N elements into the resulting approximation.

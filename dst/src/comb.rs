@@ -163,7 +163,7 @@ where
 }
 
 mod comb_rw {
-    use crate::container::CGHashMap;
+    use crate::container::hashmap::SummationHashMap;
     use crate::set::Set;
 
     trait CombRule<S: Set, T> {
@@ -184,7 +184,7 @@ mod comb_rw {
             b: &[(S, f32); N],
         ) -> impl Iterator<Item = (S, f32)> {
             let mut conflict = 0.0f32; // K.
-            let mut map: CGHashMap<N, S, f32> = CGHashMap::default();
+            let mut map: SummationHashMap<N, S, f32> = SummationHashMap::default();
 
             for (j, k) in a.iter().flat_map(|j| b.iter().map(move |k| (j, k))) {
                 let j_cap_k = S::cap(&j.0, &k.0);
