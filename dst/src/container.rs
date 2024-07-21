@@ -1,18 +1,19 @@
 //! Containers needed for our Dempster-Shafer impls.
 
-// TODO: This isn't a HashMap -- it's just a exhaustive search arr!
-pub(super) mod hashmap {
+/// "Exhaustive Map" -- a map where we find keys via exhaustive search.
+pub(super) mod em {
     use core::ops::{AddAssign, MulAssign};
 
-    /// A HashMap that when `insert` is called the values are summed.
-    pub struct SummationHashMap<const N: usize, K, V> {
+    /// A map that when `insert` is called the values are summed; keys are found via
+    /// exhaustive search.
+    pub struct SummationEM<const N: usize, K, V> {
         // TODO: We need `generic_const_expr` to compute `N * N`.
         // buf: [Option<(K, V)>; N * N],
         // ... but a [[...; N]; N] dimension arr is potentially a way to avoid this.
         buf: [[Option<(K, V)>; N]; N],
     }
 
-    impl<const N: usize, K, V> Default for SummationHashMap<N, K, V> {
+    impl<const N: usize, K, V> Default for SummationEM<N, K, V> {
         fn default() -> Self {
             // TODO: If `(K, V)` is `Copy` this becomes `[[None; N]; N]` which is much,
             // much nicer. There's also opportunities for `MaybeUninit`? This buffer should
@@ -23,7 +24,7 @@ pub(super) mod hashmap {
         }
     }
 
-    impl<const N: usize, K, V> SummationHashMap<N, K, V>
+    impl<const N: usize, K, V> SummationEM<N, K, V>
     where
         K: PartialEq,
         V: AddAssign + MulAssign,
@@ -73,7 +74,7 @@ pub(super) mod hashmap {
 
         #[test]
         fn test_insert() {
-            let mut shm = SummationHashMap::<3, usize, usize>::default();
+            let mut shm = SummationEM::<3, usize, usize>::default();
             shm.insert(0, 10);
             shm.insert(1, 20);
             shm.insert(0, 30);
