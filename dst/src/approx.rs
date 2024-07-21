@@ -65,3 +65,43 @@ impl<S: Set> Approximation<S, f32> for Summarize {
         buf
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    mod kx {
+        use super::super::{Approximation, KX};
+
+        #[test]
+        fn test_kx_full() {
+            let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
+            for elem in KX::approx::<3>(input) {
+                assert!(input.contains(&elem));
+            }
+        }
+
+        #[test]
+        fn test_kx_overflow() {
+            let input = [(1usize, 0.25f32), (2, 0.20f32), (3, 0.25f32), (4, 0.30f32)];
+            let output = [
+                (1usize, 0.25f32 / 0.8f32),
+                (3, 0.25f32 / 0.8f32),
+                (4, 0.30f32 / 0.8f32),
+            ];
+
+            for elem in KX::approx::<3>(input) {
+                assert!(output.contains(&elem));
+            }
+        }
+
+        #[test]
+        fn test_kx_incomplete() {
+            let input = [(1usize, 0.50f32), (3, 0.50f32)];
+            let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
+
+            for elem in KX::approx::<3>(input) {
+                assert!(output.contains(&elem));
+            }
+        }
+    }
+}
