@@ -58,40 +58,48 @@ where
     }
 }
 
-pub struct PriorityQueue<const N: usize, T> {
-    buf: [Option<T>; N],
-}
+pub mod heap {
 
-impl<const N: usize, T> Default for PriorityQueue<N, T> {
-    fn default() -> Self {
-        Self {
-            buf: core::array::from_fn(|_| None),
+    pub struct PriorityHeap<const N: usize, T> {
+        buf: [Option<T>; N],
+    }
+
+    impl<const N: usize, T> Default for PriorityHeap<N, T> {
+        fn default() -> Self {
+            Self {
+                buf: core::array::from_fn(|_| None),
+            }
         }
     }
-}
 
-impl<const N: usize, T> PriorityQueue<N, T> {
-    const LEAF_IDX: usize = usize::ilog2(N) as usize;
+    impl<const N: usize, T> PriorityHeap<N, T> {
+        /// The index at which leaves begin.
+        const LEAF_IDX: usize = usize::ilog2(N) as usize;
 
-    /// Compute the children of the passed index with the array representation of a heap.
-    const fn children(x: usize) -> (usize, usize) {
-        (x * 2 + 1, x * 2 + 2)
-    }
+        /// Compute the children of the passed index with the array representation of a heap.
+        const fn children(x: usize) -> (usize, usize) {
+            (x * 2 + 1, x * 2 + 2)
+        }
 
-    /// Compute the parent of a child.
-    const fn parent(x: usize) -> usize {
-        todo!()
-    }
+        /// Compute the parent of a child with the array representation of a heap.
+        const fn parent(x: usize) -> usize {
+            match x % 2 {
+                0 => (x - 2) / 2,
+                1 => (x - 1) / 2,
+                _ => unreachable!(),
+            }
+        }
 
-    fn heap_upkeep(&mut self, idx: usize) {
-        todo!();
-    }
+        fn heap_upkeep(&mut self, idx: usize) {
+            todo!();
+        }
 
-    // TODO: `impl Fn(&T) -> R`: this constrains the API to things that can `Copy`.
-    pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> R, v: T) -> Option<T> {
-        // If there's a `None`, attempt to find it and replace it.
-        let (idx, r) =
-            if let Some((idx, mem)) = self.buf.iter_mut().enumerate().find(|(_, x)| x.is_none()) {
+        // TODO: `impl Fn(&T) -> R`: this constrains the API to things that can `Copy`.
+        pub fn insert_by_key<R: PartialOrd>(&mut self, f: impl Fn(&T) -> R, v: T) -> Option<T> {
+            // If there's a `None`, attempt to find it and replace it.
+            let (idx, r) = if let Some((idx, mem)) =
+                self.buf.iter_mut().enumerate().find(|(_, x)| x.is_none())
+            {
                 (idx, mem.replace(v))
             } else {
                 // Otherwise, find the minimum value then replace it.
@@ -109,26 +117,37 @@ impl<const N: usize, T> PriorityQueue<N, T> {
                 (idx, mem.replace(v))
             };
 
-        self.heap_upkeep(idx);
-        r
+            self.heap_upkeep(idx);
+            r
+        }
+
+        pub fn consume(self) -> impl Iterator<Item = T> {
+            self.buf.into_iter().flatten()
+        }
     }
 
-    pub fn consume(self) -> impl Iterator<Item = T> {
-        self.buf.into_iter().flatten()
-    }
-}
+    #[cfg(test)]
+    mod tests {
+        use super::*;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+        type PQ = PriorityHeap<16, usize>;
 
-    type PQ = PriorityQueue<16, usize>;
+        #[test]
+        fn test_children() {
+            assert_eq!(PQ::children(0), (1, 2));
+            assert_eq!(PQ::children(1), (3, 4));
+            assert_eq!(PQ::children(2), (5, 6));
+            assert_eq!(PQ::children(3), (7, 8));
+        }
 
-    #[test]
-    fn test_children() {
-        assert_eq!(PQ::children(0), (1, 2));
-        assert_eq!(PQ::children(1), (3, 4));
-        assert_eq!(PQ::children(2), (5, 6));
-        assert_eq!(PQ::children(3), (7, 8));
+        #[test]
+        fn test_parent() {
+            assert_eq!(PQ::parent(1), 0);
+            assert_eq!(PQ::parent(2), 0);
+            assert_eq!(PQ::parent(3), 1);
+            assert_eq!(PQ::parent(4), 1);
+            //...
+            assert_eq!(PQ::parent(8), 3);
+        }
     }
 }

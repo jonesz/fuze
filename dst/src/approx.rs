@@ -168,7 +168,7 @@ where
 }
 
 mod approx_rw {
-    use crate::container::PriorityQueue;
+    use crate::container::heap::PriorityHeap;
     use crate::set::Set;
 
     trait Approximation<S: Set, T> {
@@ -181,7 +181,7 @@ mod approx_rw {
         fn approx<const N: usize>(bba: impl Iterator<Item = (S, f32)>) -> [(S, f32); N] {
             let f = |x: &(S, f32)| x.1;
             // Utilize a PQ to capture the N largest elements within the BBA.
-            let mut container = PriorityQueue::<N, (S, f32)>::default();
+            let mut container = PriorityHeap::<N, (S, f32)>::default();
             bba.for_each(|x| {
                 container.insert_by_key(f, x);
             });
