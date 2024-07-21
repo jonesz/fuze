@@ -60,6 +60,7 @@ where
 
 pub mod heap {
 
+    #[derive(Debug)]
     pub struct PriorityHeap<const N: usize, T> {
         buf: [Option<T>; N],
     }
@@ -76,13 +77,9 @@ pub mod heap {
         /// The index at which leaves begin.
         const LEAF_IDX: usize = usize::ilog2(N) as usize;
 
-        /// Compute the children of the passed index with the array representation of a heap.
-        const fn children(x: usize) -> (usize, usize) {
-            (x * 2 + 1, x * 2 + 2)
-        }
-
         /// Compute the parent of a child with the array representation of a heap.
         const fn parent(x: usize) -> usize {
+            assert!(x != 0); // We should never call this function on the root.
             match x % 2 {
                 0 => (x - 2) / 2,
                 1 => (x - 1) / 2,
@@ -90,8 +87,24 @@ pub mod heap {
             }
         }
 
-        fn heap_upkeep(&mut self, idx: usize) {
-            todo!();
+        /// Assert that the heap condition holds for the child `idx`.
+        fn heap_upkeep<R: PartialOrd>(&mut self, f: impl Fn(&T) -> R, child_idx: usize) {
+            // If the `child_idx` is the root, then the heap condition holds and we exit.
+            if child_idx == 0 {
+                return;
+            }
+
+            let parent_idx = Self::parent(child_idx);
+
+            let p = self.buf.get(parent_idx).unwrap();
+            let c = self.buf.get(child_idx).unwrap();
+
+            // If the child is larger than the parent, we need to swap them.
+            if f(c.as_ref().unwrap()) > f(p.as_ref().unwrap()) {
+                self.buf.swap(parent_idx, child_idx);
+                // Assert that the condition holds for the *new* parent index.
+                self.heap_upkeep(f, parent_idx);
+            };
         }
 
         // TODO: `impl Fn(&T) -> R`: this constrains the API to things that can `Copy`.
@@ -114,10 +127,11 @@ pub mod heap {
                         }
                     })
                     .unwrap();
-                (idx, mem.replace(v))
+
+                (idx + Self::LEAF_IDX, mem.replace(v)) // We started at LEAF_IDX, add it back...
             };
 
-            self.heap_upkeep(idx);
+            self.heap_upkeep(f, idx);
             r
         }
 
@@ -130,24 +144,31 @@ pub mod heap {
     mod tests {
         use super::*;
 
-        type PQ = PriorityHeap<16, usize>;
-
-        #[test]
-        fn test_children() {
-            assert_eq!(PQ::children(0), (1, 2));
-            assert_eq!(PQ::children(1), (3, 4));
-            assert_eq!(PQ::children(2), (5, 6));
-            assert_eq!(PQ::children(3), (7, 8));
-        }
+        const N: usize = 4;
+        type PH = PriorityHeap<N, usize>;
 
         #[test]
         fn test_parent() {
-            assert_eq!(PQ::parent(1), 0);
-            assert_eq!(PQ::parent(2), 0);
-            assert_eq!(PQ::parent(3), 1);
-            assert_eq!(PQ::parent(4), 1);
+            assert_eq!(PH::parent(1), 0);
+            assert_eq!(PH::parent(2), 0);
+            assert_eq!(PH::parent(3), 1);
+            assert_eq!(PH::parent(4), 1);
             //...
-            assert_eq!(PQ::parent(8), 3);
+            assert_eq!(PH::parent(8), 3);
+        }
+
+        #[test]
+        fn test_pq_simple() {
+            let mut ph = PH::default();
+            let f = |x: &usize| *x;
+
+            (0..8).for_each(|x| {
+                ph.insert_by_key(f, x);
+            });
+
+            // The Heap should contain 8, 7, ... 8 - N; if they sum equivalently we've
+            // capture them all
+            assert_eq!(ph.consume().sum::<usize>(), ((8 - N)..8).sum());
         }
     }
 }
