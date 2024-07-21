@@ -1,60 +1,89 @@
-// TODO: Perhaps this should be named something like CGHashSummation?
-// TODO: What does CG even stand for?
-pub struct CGHashMap<const N: usize, K, V> {
-    // TODO: We need `generic_const_expr` to compute `N * N`.
-    // buf: [Option<(K, V)>; N * N],
-    // ... but a [[...; N]; N] dimension arr is potentially a way to avoid this.
-    buf: [[Option<(K, V)>; N]; N],
-}
+//! Containers needed for our Dempster-Shafer impls.
 
-impl<const N: usize, K, V> Default for CGHashMap<N, K, V> {
-    fn default() -> Self {
-        // TODO: If `(K, V)` is `Copy`, this becomes [[None; N]; N] which is much,
-        // much nicer. There's also opportunities for `MaybeUninit`? This buffer should
-        // just be zeroed (if `None` is just zeroed.)
-        let buf: [[Option<(K, V)>; N]; N] =
-            core::array::from_fn(|_| core::array::from_fn(|_| None));
-        Self { buf }
+/// "Exhaustive Map" -- a map where we find keys via exhaustive search.
+pub(super) mod em {
+    use core::ops::{AddAssign, MulAssign};
+
+    /// A map that when `insert` is called the values are summed; keys are found via
+    /// exhaustive search.
+    pub struct SummationEM<const N: usize, K, V> {
+        // TODO: We need `generic_const_expr` to compute `N * N`.
+        // buf: [Option<(K, V)>; N * N],
+        // ... but a [[...; N]; N] dimension arr is potentially a way to avoid this.
+        buf: [[Option<(K, V)>; N]; N],
     }
-}
 
-impl<const N: usize, K, V> CGHashMap<N, K, V>
-where
-    K: PartialEq,
-    V: core::ops::AddAssign + core::ops::MulAssign + Copy,
-{
-    // This 'insert' operation is a summation.
-    pub fn insert(&mut self, k: K, v: V) {
-        let mem = self
-            .buf
-            .iter_mut()
-            .flatten()
-            // We're looking for a `None` or the index where the keys match.
-            .find(|z| !z.as_ref().is_some_and(|y| y.0 != k))
-            .expect("Should have found an index to place this KV in; is N correct?.");
-
-        if let Some(inner) = mem {
-            inner.1 += v;
-        } else {
-            *mem = Some((k, v));
+    impl<const N: usize, K, V> Default for SummationEM<N, K, V> {
+        fn default() -> Self {
+            // TODO: If `(K, V)` is `Copy` this becomes `[[None; N]; N]` which is much,
+            // much nicer. There's also opportunities for `MaybeUninit`? This buffer should
+            // just be zeroed (assuming that stable Rust zeroes `None`).
+            let buf: [[Option<(K, V)>; N]; N] =
+                core::array::from_fn(|_| core::array::from_fn(|_| None));
+            Self { buf }
         }
     }
 
-    pub fn scale(&mut self, s: V) {
-        self.buf
-            .iter_mut()
-            .flatten()
-            .flatten()
-            // TODO: The `*= s` triggers a `Copy` of `s`; what's the
-            // perf impact? We could utilize a reference, but it makes the
-            // trait bounds uglier.
-            .for_each(|x| x.1 *= s);
+    impl<const N: usize, K, V> SummationEM<N, K, V>
+    where
+        K: PartialEq,
+        V: AddAssign + MulAssign,
+    {
+        /// Insert a `(K, V)` pair into the map, summing the `V` value if found.
+        pub fn insert(&mut self, k: K, v: V) {
+            let mem = self
+                .buf
+                .iter_mut()
+                .flatten()
+                // We're looking for a `None` or the index where the keys match, so DeMorgan's...
+                .find(|z| !z.as_ref().is_some_and(|y| y.0 != k))
+                .expect("Should have found an index to place this KV in; is N correct?.");
+
+            if let Some(inner) = mem {
+                inner.1 += v;
+            } else {
+                mem.replace((k, v));
+            }
+        }
+
+        pub fn scale(&mut self, s: V)
+        where
+            V: Copy, // See the below TODO and the commit info.
+        {
+            self.buf
+                .iter_mut()
+                .flatten()
+                .flatten()
+                // TODO: The `*= s` triggers a `Copy` of `s`; what's the
+                // perf impact? We could utilize a reference, but it makes the
+                // trait bounds uglier.
+                .for_each(|x| x.1 *= s);
+        }
+
+        // TODO: Think about `IntoIter` rather than this?
+        /// Return an iterator over the underlying buffer.
+        pub fn consume(self) -> impl Iterator<Item = (K, V)> {
+            // [[...; N]; N] -> [...; N * N] alongside dumping all `None` options.
+            self.buf.into_iter().flatten().flatten()
+        }
     }
 
-    /// Return an iterator over the underlying buffer.
-    pub fn consume(self) -> impl Iterator<Item = (K, V)> {
-        // [[...; N]; N] -> [...; N * N] alongside dumping all `None` options.
-        self.buf.into_iter().flatten().flatten()
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_insert() {
+            let mut shm = SummationEM::<3, usize, usize>::default();
+            shm.insert(0, 10);
+            shm.insert(1, 20);
+            shm.insert(0, 30);
+
+            let mut iter = shm.consume();
+            assert_eq!(iter.next(), Some((0, 40)));
+            assert_eq!(iter.next(), Some((1, 20)));
+            assert!(iter.next().is_none());
+        }
     }
 }
 
