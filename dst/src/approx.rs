@@ -10,13 +10,13 @@ use crate::container::heap::PriorityHeap;
 use crate::set::Set;
 
 pub trait Approximation<S: Set, T> {
-    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, T)>) -> [(S, T); N];
+    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, T)>) -> [Option<(S, T)>; N];
 }
 
 pub struct KX();
 
 impl<S: Set> Approximation<S, f32> for KX {
-    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [(S, f32); N] {
+    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [Option<(S, f32)>; N] {
         // Utilize a PH to capture the N largest elements within the BBA.
         let mut container = PriorityHeap::<N, (S, f32)>::default();
         bba.into_iter().for_each(|x| {
@@ -24,13 +24,10 @@ impl<S: Set> Approximation<S, f32> for KX {
             container.insert_by_key(f, x);
         });
 
-        // Push those N elements into the resulting approximation.
-        let mut container_iter = container.consume();
-        let mut buf = core::array::from_fn(|_| container_iter.next().unwrap_or((S::EMPTY, 0.0f32)));
-
         // Rescale so that the resulting BBA sums to `1.0f32`.
-        let denom: f32 = buf.iter().map(|e| e.1).sum();
-        buf.iter_mut().for_each(|mem| mem.1 /= denom);
+        let mut buf = container.consume();
+        let denom: f32 = buf.iter().flatten().map(|e| e.1).sum();
+        buf.iter_mut().flatten().for_each(|mem| mem.1 /= denom);
 
         buf
     }
@@ -39,7 +36,7 @@ impl<S: Set> Approximation<S, f32> for KX {
 pub struct Summarize();
 
 impl<S: Set> Approximation<S, f32> for Summarize {
-    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [(S, f32); N] {
+    fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [Option<(S, f32)>; N] {
         // Utilize a PH to capture the N largest elements within the BBA; those that are
         // evicted are merged together. NOTE: We technically want to store (N-1) elements,
         // but const generics make this difficult -- we'll handle this later.
@@ -53,14 +50,17 @@ impl<S: Set> Approximation<S, f32> for Summarize {
             }
         }
 
-        // Push those N elements into the resulting approximation.
-        let mut container_iter = container.consume();
-        let mut buf = core::array::from_fn(|_| container_iter.next().unwrap_or((S::EMPTY, 0.0f32)));
-
+        let mut buf = container.consume();
         // Back to N vs (N-1) -- merge the `merged` into the last element of the arr.
-        let last = buf.get(N - 1).unwrap();
-        merged = (S::cup(&merged.0, &last.0), merged.1 + last.1);
-        *buf.get_mut(N - 1).unwrap() = merged;
+        if let Some(mem) = buf.iter_mut().find(|x| x.is_none()) {
+            *mem = Some(merged);
+        } else {
+            // TODO: It might be wiser to find the smallest element, which isn't guaranteed
+            // to be the last element.
+            let last = buf.get(N - 1).unwrap().as_ref().unwrap();
+            merged = (S::cup(&merged.0, &last.0), merged.1 + last.1);
+            *buf.get_mut(N - 1).unwrap() = Some(merged);
+        }
 
         buf
     }
@@ -75,7 +75,7 @@ mod tests {
         #[test]
         fn test_kx_full() {
             let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
-            for elem in KX::approx::<3>(input) {
+            for elem in KX::approx::<3>(input).iter().flatten() {
                 assert!(input.contains(&elem));
             }
         }
@@ -89,7 +89,7 @@ mod tests {
                 (4, 0.30f32 / 0.8f32),
             ];
 
-            for elem in KX::approx::<3>(input) {
+            for elem in KX::approx::<3>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -99,7 +99,7 @@ mod tests {
             let input = [(1usize, 0.50f32), (3, 0.50f32)];
             let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
 
-            for elem in KX::approx::<3>(input) {
+            for elem in KX::approx::<3>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -111,7 +111,7 @@ mod tests {
         #[test]
         fn test_summarize_full() {
             let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
-            for elem in Summarize::approx::<3>(input) {
+            for elem in Summarize::approx::<3>(input).iter().flatten() {
                 assert!(input.contains(&elem));
             }
         }
@@ -121,7 +121,7 @@ mod tests {
             let input = [(1usize, 0.10f32), (2, 0.20f32), (3, 0.30f32), (4, 0.40f32)];
             let output = [(4usize, 0.40f32), (3, 0.30f32), (1 | 2, 0.10f32 + 0.20f32)];
 
-            for elem in Summarize::approx::<3>(input) {
+            for elem in Summarize::approx::<3>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -131,7 +131,7 @@ mod tests {
             let input = [(1usize, 0.50f32), (3, 0.50f32)];
             let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
 
-            for elem in Summarize::approx::<3>(input) {
+            for elem in Summarize::approx::<3>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }

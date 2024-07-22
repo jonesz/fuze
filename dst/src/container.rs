@@ -167,9 +167,9 @@ pub mod heap {
             r
         }
 
-        /// Return an iterator over the underlying buffer.
-        pub fn consume(self) -> impl Iterator<Item = T> {
-            self.buf.into_iter().flatten()
+        /// Return the underyling buffer.
+        pub fn consume(self) -> [Option<T>; N] {
+            self.buf
         }
     }
 
@@ -201,7 +201,10 @@ pub mod heap {
 
             // The Heap should contain 8, 7, ... 8 - N; if they sum equivalently we've
             // capture them all
-            assert_eq!(ph.consume().sum::<usize>(), ((8 - N)..8).sum());
+            assert_eq!(
+                ph.consume().iter().flatten().sum::<usize>(),
+                ((8 - N)..8).sum()
+            );
         }
     }
 }

@@ -32,14 +32,19 @@ pub fn comb_approx<'a, const N: usize, S, T, A, C>(
 ) -> [(S, T); N]
 where
     S: Set + 'a,
-    T: 'a,
+    T: From<u8> + 'a,
     A: Approximation<S, T>,
     C: CombRule<S, T>,
 {
-    bba.into_iter()
+    let mut iter = bba
+        .into_iter()
         .map(|e| A::approx(e)) // Compute the initial approximation.
-        .reduce(|acc, e| A::approx(C::comb(&acc, &e))) // Proceed to combine them, then approximate again.
+        .reduce(|acc: [Option<(S, T)>; N], e| A::approx(C::comb(&acc, &e))) // Proceed to combine them, then approximate again.
         .expect("Called combination on an empty BBA?")
+        .into_iter()
+        .flatten();
+
+    core::array::from_fn(|_| iter.next().unwrap_or((S::EMPTY, 0u8.into())))
 }
 
 #[cfg(test)]
