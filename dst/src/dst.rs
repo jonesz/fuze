@@ -1,6 +1,6 @@
 //! Core DST operations: `bel` and `pl` corresponding to the
 //! calculation of belief and plausabilty respectivey.
-use crate::set::Set;
+use crate::{approx::Approximation, comb::CombRule, set::Set};
 use core::{iter::Sum, ops::Sub};
 
 /// Compute the belief of `Q` given a BBA.
@@ -23,11 +23,24 @@ where
     T::from(1u8) - bel(bba, &q.not())
 }
 
-// pub fn comb_approx<'a, const N: usize, S, T>(
-//     bba: impl IntoIterator<Item = impl IntoIterator<Item = &'a (S, T)>>,
-// ) -> [(S, T); N] {
-//     todo!()
-// }
+/// Combine a set of BBAs with an approximation and combination rule.
+pub fn comb_approx<'a, const N: usize, S, T, A, C>(
+    // TODO: The above takes a reference, but this one consumes. `Approximation`
+    // in some sense needs to consume; we could take a reference and immediately copy
+    // it?
+    bba: impl IntoIterator<Item = impl IntoIterator<Item = (S, T)>>,
+) -> [(S, T); N]
+where
+    S: Set + 'a,
+    T: 'a,
+    A: Approximation<S, T>,
+    C: CombRule<S, T>,
+{
+    bba.into_iter()
+        .map(|e| A::approx(e)) // Compute the initial approximation.
+        .reduce(|acc, e| A::approx(C::comb(&acc, &e))) // Proceed to combine them, then approximate again.
+        .expect("Called combination on an empty BBA?")
+}
 
 #[cfg(test)]
 mod tests {
