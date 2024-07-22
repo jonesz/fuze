@@ -6,7 +6,7 @@ pub trait CombRule<S: Set, T> {
     fn comb<const N: usize>(a: &[(S, T); N], b: &[(S, T); N]) -> impl Iterator<Item = (S, T)>;
 }
 
-struct Dempster();
+pub struct Dempster();
 
 impl<S> CombRule<S, f32> for Dempster
 where
