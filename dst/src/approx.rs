@@ -5,15 +5,17 @@
 //! difficult to do this in parallel because of potential arr irregularity.
 //! With an approximation, we can take some BBA `[?](set, f32)` and reduce it
 //! down to a known-length `[k](set, f32)`, allowing for reduce and so forth.
-
 use crate::container::heap::PriorityHeap;
 use crate::set::Set;
 
+/// An `Approximation` is a strategy for producing a BBA with a known input.
 pub trait Approximation<S: Set, T> {
+    /// Produce an approximation of `N` elements for the input BBA.
     fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, T)>) -> [Option<(S, T)>; N];
 }
 
-pub struct KX();
+/// `KX` takes the `N` largest elements in producing the appproximation.
+pub struct KX;
 
 impl<S: Set> Approximation<S, f32> for KX {
     fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [Option<(S, f32)>; N] {
@@ -24,8 +26,8 @@ impl<S: Set> Approximation<S, f32> for KX {
             container.insert_by_key(f, x);
         });
 
-        // Rescale so that the resulting BBA sums to `1.0f32`.
         let mut buf = container.consume();
+        // Rescale so that the resulting BBA sums to `1.0f32`.
         let denom: f32 = buf.iter().flatten().map(|e| e.1).sum();
         buf.iter_mut().flatten().for_each(|mem| mem.1 /= denom);
 
@@ -33,7 +35,8 @@ impl<S: Set> Approximation<S, f32> for KX {
     }
 }
 
-pub struct Summarize();
+/// `Summarize` takes the `N-1` largest elements then unions all of the rest.
+pub struct Summarize;
 
 impl<S: Set> Approximation<S, f32> for Summarize {
     fn approx<const N: usize>(bba: impl IntoIterator<Item = (S, f32)>) -> [Option<(S, f32)>; N] {
@@ -68,14 +71,16 @@ impl<S: Set> Approximation<S, f32> for Summarize {
 
 #[cfg(test)]
 mod tests {
+    const N: usize = 3;
 
     mod kx {
         use super::super::{Approximation, KX};
+        use super::N;
 
         #[test]
         fn test_kx_full() {
             let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
-            for elem in KX::approx::<3>(input).iter().flatten() {
+            for elem in KX::approx::<N>(input).iter().flatten() {
                 assert!(input.contains(&elem));
             }
         }
@@ -89,7 +94,7 @@ mod tests {
                 (4, 0.30f32 / 0.8f32),
             ];
 
-            for elem in KX::approx::<3>(input).iter().flatten() {
+            for elem in KX::approx::<N>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -99,7 +104,7 @@ mod tests {
             let input = [(1usize, 0.50f32), (3, 0.50f32)];
             let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
 
-            for elem in KX::approx::<3>(input).iter().flatten() {
+            for elem in KX::approx::<N>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -107,11 +112,12 @@ mod tests {
 
     mod summarize {
         use super::super::{Approximation, Summarize};
+        use super::N;
 
         #[test]
         fn test_summarize_full() {
             let input = [(1usize, 0.25f32), (2, 0.50f32), (3, 0.25f32)];
-            for elem in Summarize::approx::<3>(input).iter().flatten() {
+            for elem in Summarize::approx::<N>(input).iter().flatten() {
                 assert!(input.contains(&elem));
             }
         }
@@ -121,7 +127,7 @@ mod tests {
             let input = [(1usize, 0.10f32), (2, 0.20f32), (3, 0.30f32), (4, 0.40f32)];
             let output = [(4usize, 0.40f32), (3, 0.30f32), (1 | 2, 0.10f32 + 0.20f32)];
 
-            for elem in Summarize::approx::<3>(input).iter().flatten() {
+            for elem in Summarize::approx::<N>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }
@@ -131,7 +137,7 @@ mod tests {
             let input = [(1usize, 0.50f32), (3, 0.50f32)];
             let output = [(1usize, 0.50f32), (3, 0.50f32), (0, 0.0f32)];
 
-            for elem in Summarize::approx::<3>(input).iter().flatten() {
+            for elem in Summarize::approx::<N>(input).iter().flatten() {
                 assert!(output.contains(&elem));
             }
         }

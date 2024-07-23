@@ -2,14 +2,17 @@
 use crate::container::em::SummationEM;
 use crate::set::Set;
 
+/// A rule that defines how BBAs should be merged.
 pub trait CombRule<S: Set, T> {
+    /// Combine two BBAs into one.
     fn comb<const N: usize>(
         a: &[Option<(S, T)>; N],
         b: &[Option<(S, T)>; N],
     ) -> impl Iterator<Item = (S, T)>;
 }
 
-pub struct Dempster();
+/// Dempter's original rule.
+pub struct Dempster;
 
 impl<S> CombRule<S, f32> for Dempster
 where
